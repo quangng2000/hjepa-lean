@@ -1,0 +1,297 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,booktabs}
+\usepackage[T1]{fontenc}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\title{H-JEPA versus Flat JEPA\\Conditional Guarantees, Gains, and Losses}
+\author{Working research note}
+\date{October 20, 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+We formulate a mathematical comparison around arXiv:2610.06805v1. The central tradeoff is between information discarded by abstraction and the learning or planning difficulty that abstraction removes. We prove an exact prediction-risk decomposition, a finite-sample gain/loss threshold, a linear predictive-feature selection result, and a conditional planning-regret bound. These are standard mathematical arguments and explicitly simplified models, organized as a research foundation. They do not establish convergence or universal superiority of the complete trained neural architectures. Novelty remains unassessed.
+\end{abstract}
+
+\paragraph{Formal verification status.}
+The companion Lean 4 project at
+\url{https://github.com/quangng2000/hjepa-lean} machine-checks the finite,
+scalar version of the abstraction identities, algebraic consequences of the
+stated OLS risk formulas, the conditional composed-planner bound, rollout
+and temporal-grouping identities, and finite sign/control counterexamples.
+It does not yet formalize the Gaussian OLS expectation formulas, the
+continuous/vector-valued probability arguments, or the linear spectral result.
+The repository README provides the exact theorem-by-theorem coverage.
+Analytical proofs below must not be conflated with complete Lean formalizations.
+
+\section{Comparison and attribution}
+The reference is Zhang et al.~\cite{hjepa}. Its experimental flat baseline is single-level LeWorldModel. H-JEPA learns distinct representations at progressively longer temporal strides and plans through lower-level subgoals. Experimental upper state encoders are pointwise; action encoders aggregate intervening actions. Prediction uses SIGReg, with inverse dynamics additionally used for DROID.
+
+Appendix L already analyzes background-only slow-feature collapse, limitations of marginal regularization, conditional prediction variance, and inverse-dynamics barriers. Those are prior results, not proposed contributions here. We develop a common-target risk comparison and a conditional guarantee for the composed planner.
+
+\paragraph{Fair comparison.}
+Hold fixed the data distribution, observations, primitive-action interface, goal, physical horizon, and true evaluation cost. Distinguish training compute from planning compute, including every refinement level. A flat JEPA here means an action-conditioned world model, rather than image-only masked-feature pretraining.
+
+Raw training losses from different learned spaces are insufficient: rescaling an unconstrained target and predictor by $\alpha$ rescales squared error by $\alpha^2$. Regularization can constrain this freedom, but matching scale does not ensure that two spaces retain the same task information.
+
+\section{Exact abstraction gain--loss identity}
+Freeze a low-level representation $Z$ and an upper representation $U=g(Z)$. Let $Y\in L^2(\R^m)$ be the \emph{same} evaluation target, such as a future physical state or task outcome. Define
+\[
+ \mu_Z=\E[Y\mid Z],\quad \mu_U=\E[Y\mid U],\quad
+ R^*(V)=\inf_f\E\norm{Y-f(V)}^2 ,
+\]
+where the infimum is over all measurable predictors with finite risk.
+
+\begin{theorem}[Information penalty]
+\label{thm:information}
+\[
+ B:=R^*(U)-R^*(Z)=\E\norm{\mu_Z-\mu_U}^2\geq0 .
+\]
+Equality holds exactly when $\mu_Z$ is measurable with respect to $U$.
+\end{theorem}
+\begin{proof}
+Conditional expectation minimizes squared loss. Expand
+$Y-\mu_U=(Y-\mu_Z)+(\mu_Z-\mu_U)$.
+The cross term vanishes since $\mu_Z-\mu_U$ is $Z$-measurable and
+$\E[Y-\mu_Z\mid Z]=0$. Take expected squared norms. The nonnegative difference is zero exactly when $\mu_Z=\mu_U$ almost surely.
+\end{proof}
+
+Equality means conditional-mean sufficiency for this target and loss, not full sufficiency of the target distribution. For example, let $Z$ be a fair draw from $\{1,2\}$, $\epsilon$ an independent fair sign, $Y=Z\epsilon$, and $U=0$. Both conditional means vanish, but $|Y|$ reveals $Z$.
+
+For a deterministic chain $U_0=Z,U_1,\ldots,U_L$, penalties telescope:
+\[
+ R^*(U_L)-R^*(Z)=
+ \sum_{\ell=1}^{L}\E\norm{\E[Y\mid U_{\ell-1}]-\E[Y\mid U_\ell]}^2.
+\]
+
+Let $\widehat f_V$ use a training sample independent of the evaluation pair. Feature maps are fixed in advance, or learned on a separate sample. In the latter case, condition every conditional mean, Bayes risk, and risk identity in this section on the realized feature-learning sample and maps; one may subsequently average those conditional identities. Define
+\[
+ A_V=\E\norm{\widehat f_V(V)-\E[Y\mid V]}^2,
+\]
+including training randomness. Assume both learned predictors have finite expected test risk, so all differences below are well-defined. Conditional orthogonality gives
+$R(\widehat f_V)=R^*(V)+A_V$, hence
+\begin{equation}
+ \boxed{R(\widehat f_U)-R(\widehat f_Z)=B+A_U-A_Z.}
+ \label{eq:central}
+\end{equation}
+Abstraction helps expected prediction risk exactly when
+\[
+ \boxed{A_Z-A_U>B.}
+\]
+Learning error $A_V$ includes approximation, estimation, and optimization effects. An extra layer does not automatically reduce it.
+
+\paragraph{Strict-loss example.}
+For $Z\sim\mathcal N(0,1)$, $U=Z^2$, and $Y=Z$, symmetry gives $\mu_U=0$. Thus $R^*(Z)=0$ and $R^*(U)=1$: abstraction loses the sign.
+
+\paragraph{Scope.}
+The theorem compares nested frozen features, including levels within one trained hierarchy. A separately trained flat encoder need not equal H-JEPA's first-level encoder. If an upper level sees more history, define $Z$ to contain that same history. For action-conditioned prediction at a common physical horizon, apply the result to inputs $(Z,A)$ and $(g(Z),A)$, or $(g(Z),h(A))$ when action pooling is also part of the abstraction. A controller using both $Z$ and $U$ retains $Z$; this is not a theorem that the complete architecture loses all upper-level discarded information.
+
+\section{A finite-sample example with an exact gain/loss threshold}
+\begin{theorem}[Gaussian-design regression]
+\label{thm:ols}
+Let $Z=(U,W)\sim\mathcal N(0,I_p)$, $p=d+q$, with $U\in\R^d$, $W\in\R^q$, and
+\[
+ Y=U^\top a+W^\top b+\epsilon,\qquad
+ \E\epsilon=0,\qquad \Var(\epsilon)=\sigma^2 .
+\]
+Assume independent noise $\epsilon$, iid training pairs, a fresh independent test pair, and $n>p+1$. Fit ordinary least squares \emph{without an intercept}, using either all $p$ coordinates or only $U$. Set $B=\norm b^2$. Then
+\[
+ R_{\rm full}=\sigma^2\frac{n-1}{n-p-1},\qquad
+ R_{\rm reduced}=(\sigma^2+B)\frac{n-1}{n-d-1},
+\]
+and
+\begin{equation}
+ \boxed{R_{\rm reduced}<R_{\rm full}
+ \iff B<\frac{\sigma^2q}{n-p-1}.}
+ \label{eq:threshold}
+\end{equation}
+Equality and the reverse inequality follow by replacing $<$ accordingly.
+\end{theorem}
+\begin{proof}
+For an $n\times r$ standard Gaussian design $X$, independent noise variance $\tau^2$, and correctly specified linear regression,
+\[
+ \widehat\beta-\beta=(X^\top X)^{-1}X^\top\epsilon,\qquad
+ R=\tau^2+\tau^2\E\tr(X^\top X)^{-1}.
+\]
+The risk expression follows from independent whitened test features. The Schur complement gives
+\[
+ [(X^\top X)^{-1}]_{jj}=
+ \{x_j^\top(I-P_{-j})x_j\}^{-1},
+\]
+where $P_{-j}$ projects onto the other $r-1$ columns. Conditional on those columns, the denominator is $\chi^2_{n-r+1}$. Since
+$\E[(\chi^2_\nu)^{-1}]=1/(\nu-2)$ for $\nu>2$, the risk equals
+$\tau^2[1+r/(n-r-1)]$.
+
+For the full model use $r=p,\tau^2=\sigma^2$. For the reduced model, $W^\top b+\epsilon$ is independent of $U$, with variance $B+\sigma^2$, so use $r=d,\tau^2=B+\sigma^2$. Subtract:
+\[
+ R_{\rm reduced}-R_{\rm full}=
+ \frac{(n-1)\{B(n-p-1)-\sigma^2q\}}
+ {(n-d-1)(n-p-1)}.
+\]
+All denominator terms are positive, proving the threshold.
+\end{proof}
+
+For $n=30,p=10,d=2,q=8,\sigma^2=1$, the threshold is $8/19\approx0.421$:
+\begin{center}
+\begin{tabular}{rrrr}
+\toprule
+Discarded signal $B$ & Full risk & Reduced risk & Better predictor\\
+\midrule
+$0$ & $1.5263$ & $1.0741$ & Reduced\\
+$0.1$ & $1.5263$ & $1.1815$ & Reduced\\
+$1$ & $1.5263$ & $2.1481$ & Full\\
+\bottomrule
+\end{tabular}
+\end{center}
+These are exact toy-model expectations, not measured H-JEPA scores. With dimensions fixed and $n\to\infty$, the threshold tends to zero: discarding fixed nonzero signal eventually hurts this comparison. Removing nuisance coordinates can help finite-sample estimation, but an added nonlinear encoder does not automatically reduce effective complexity. This example does not claim that the paper shrinks latent width at every level.
+
+\section{What a simplified predictive objective selects}
+\begin{proposition}[Temporal correlation selection]
+\label{prop:ar}
+Let a stationary Gaussian process satisfy
+\[
+ X_{t+1}=D X_t+\varepsilon_{t+1},\quad
+ D=\operatorname{diag}(\rho_1,\ldots,\rho_p),\quad
+ 1\geq\rho_1\geq\cdots\geq\rho_p\geq0 .
+\]
+Assume $X_t\sim\mathcal N(0,I_p)$, and temporally iid Gaussian innovations of covariance $I_p-D^2$, independent of the past. For $1\leq m\leq p$, an encoder $W$ with $WW^\top=I_m$, and integer $k\geq1$, predict $WX_{t+k}$ by $MWX_t$. Then
+\[
+ \min_M\E\norm{WX_{t+k}-MWX_t}^2
+ =m-\norm{WD^kW^\top}_F^2,
+\]
+and the minimum over $W$ is $\sum_{i=1}^{m}(1-\rho_i^{2k})$, attained by selecting the first $m$ coordinates.
+\end{proposition}
+\begin{proof}
+Encoded marginals have covariance $I_m$ and cross-covariance $C=WD^kW^\top$. Completing the square gives loss
+$m-\norm C_F^2+\norm{M-C}_F^2$.
+Let $P=W^\top W$. Since $I-P$ is an orthogonal projector,
+\[
+ \tr(WD^{2k}W^\top)-\tr\{(WD^kW^\top)^2\}
+ =\norm{(I-P)D^kW^\top}_F^2\geq0.
+\]
+Also $\tr(WD^{2k}W^\top)\leq\sum_{i=1}^m\rho_i^{2k}$: the diagonal entries of $P$ lie in $[0,1]$ and sum to $m$, so the largest $m$ diagonal entries of $D^{2k}$ maximize the weighted sum. Coordinate selection attains both bounds.
+\end{proof}
+
+This is a tied, population-whitened linear encoder with an autonomous one-context-step predictor. It does not model neural optimization or finite-sample SIGReg. It exhibits a useful filter when selected coordinates are task-relevant and a harmful filter otherwise. For example, with $\rho_1=.9,\rho_2=.5,m=1$ and task $Y=X_{t,2}$, an optimal predictive encoder selects coordinate 1, giving task Bayes MSE $1$; retaining coordinate 2 would give $0$.
+
+For any fixed $m$, changing stride $k$ preserves the ranking in this model. If all $\rho_i<1$, absolute explained-variance gaps tend to zero at very long horizons, although relative ratios can grow. A coordinate with $\rho_i=1$ is a random constant through time; its population variance comes from different initializations, not within-trajectory variation. Such a background can dominate the predictive objective. Fast periodic motion can remain predictable outside this AR model. Slowness, predictability, and control relevance are distinct properties.
+
+\section{A conditional guarantee for the composed planner}
+Fix initial information, a physical horizon, and a task. Let $\mathcal A$ be feasible primitive-action sequences and $J$ their common true cost, with $J^*=\inf_{\mathcal A}J$. Let $\mathcal B$ be macro-plan candidates and $\mathcal R:\mathcal B\to\mathcal A$ the actual refinement procedure. Define
+\[
+ \mathcal A_H=\mathcal R(\mathcal B),\qquad
+ \rho_H=\inf_{a\in\mathcal A_H}J(a)-J^*\geq0.
+\]
+Assume nonempty sets and finite relevant infima.
+
+\begin{theorem}[Planning regret]
+\label{thm:planning}
+Suppose a hierarchical surrogate $Q_H$ satisfies
+\[
+ \sup_{b\in\mathcal B}|Q_H(b)-J(\mathcal R(b))|\leq\delta_H
+\]
+and the returned $\widehat b$ satisfies
+$Q_H(\widehat b)\leq\inf_bQ_H(b)+\eta_H$. Then
+\begin{equation}
+ \boxed{J(\mathcal R(\widehat b))-J^*\leq
+ 2\delta_H+\eta_H+\rho_H.}
+ \label{eq:regret}
+\end{equation}
+A flat planner searching all of $\mathcal A$ under analogous assumptions satisfies
+$J(\widehat a_F)-J^*\leq2\delta_F+\eta_F$.
+\end{theorem}
+\begin{proof}
+\begin{align*}
+ J(\mathcal R(\widehat b))
+ &\leq Q_H(\widehat b)+\delta_H\\
+ &\leq\inf_bQ_H(b)+\eta_H+\delta_H\\
+ &\leq\inf_bJ(\mathcal R(b))+\eta_H+2\delta_H\\
+ &=J^*+\rho_H+\eta_H+2\delta_H.
+\end{align*}
+The flat result sets $\mathcal R$ to the identity.
+\end{proof}
+
+Here $\delta_H$ includes task-cost misalignment, predictive error, and refinement error; $\eta_H$ measures optimization error of the whole composition; $\rho_H$ measures lost access to good primitive plans. A shorter search might reduce $\eta_H$, but requires proof or measurement. Local solver guarantees do not establish global $\eta_H$. Upper-level prediction loss alone does not bound $\delta_H$, and latent subgoals need not be realizable.
+
+A smaller upper bound establishes a better guarantee, not smaller realized cost. Actual superiority needs a direct comparison or a suitable lower bound for the flat algorithm. If both surrogates are exact in true task-cost units ($\delta_H=\delta_F=0$), refinement loses no optimal value ($\rho_H=0$), and exact optimizers exist and are found ($\eta_H=\eta_F=0$), both methods attain $J^*$. Perfect latent prediction alone is insufficient.
+
+\subsection{From rollout error to task error}
+Let $T=kN$, let $u_j$ be the true abstract state after $j$ refined macro-steps, and let $\widehat u_j$ be its prediction. Assume, uniformly over relevant states and candidate plans,
+\[
+ \norm{u_{j+1}-\widehat G(u_j,b_j)}\leq\epsilon_H,\qquad
+ \norm{\widehat G(u,b)-\widehat G(v,b)}
+ \leq L_H\norm{u-v}.
+\]
+The first assumption includes abstract-state insufficiency, macro-action representation, dynamics error, and refinement. Triangle inequality and induction yield
+\[
+ e_{j+1}\leq\epsilon_H+L_He_j,\qquad
+ e_N\leq L_H^Ne_0+\epsilon_HS_N(L_H),\qquad
+ S_N(L)=\sum_{i=0}^{N-1}L^i .
+\]
+For $Q_H(b)=C_H(\widehat u_N(b))$, suppose $C_H$ is $K_H$-Lipschitz and
+$|J(\mathcal R(b))-C_H(u_N(b))|\leq\kappa_H$ uniformly. Adding and subtracting the true abstract-state cost gives
+\[
+ \delta_H\leq\kappa_H+
+ K_H\{L_H^Ne_0+\epsilon_HS_N(L_H)\}.
+\]
+Squared latent distance needs a bounded relevant domain for uniform Lipschitzness. Cumulative task cost requires a sum of stagewise error terms.
+
+\begin{proposition}[Grouping steps alone gives no tighter bound]
+If a macro predictor is just $k$ compositions of the flat predictor, with inherited bounds
+$L_H=L_F^k$ and $\epsilon_H=\epsilon_FS_k(L_F)$, then
+\[
+ \epsilon_H S_N(L_H)=\epsilon_FS_{kN}(L_F).
+\]
+\end{proposition}
+\begin{proof}
+$S_k(L)S_N(L^k)=\sum_{j=0}^{N-1}\sum_{i=0}^{k-1}L^{kj+i}=S_{kN}(L)$.
+\end{proof}
+A better learned predictor, abstraction, or optimization problem must supply the improvement. Merely shortening the macro horizon is insufficient. These statements concern a fixed-horizon plan; receding-horizon execution needs a separate closed-loop analysis.
+
+\section{Counterexample for control and compute accounting}
+Let an observed state be $x=(c,m,y)$, with $c\sim\mathcal N(0,1)$, an independent fair sign $m$, and initially $y=0$. Choose $a\in\{-1,+1\}$, with
+\[
+ c'=c,\qquad m'=m,\qquad y'=\mathbf1\{a=m\}.
+\]
+The goal is $y'=1$. The abstraction $\phi(x)=c$ is nonconstant and standard Gaussian, and admits exact prediction $\widehat G(c,a)=c$. Nevertheless, a controller observing only $c$ and a goal providing no information about $m$ succeeds with probability $1/2$. Conditional on its observations and independent policy randomness, $m$ remains fair. A full-state controller chooses $a=m$ and succeeds surely.
+
+Perfect nonconstant latent prediction therefore does not imply control sufficiency. The full H-JEPA may retain $m$ at a lower level; this example does not prove unavoidable architectural failure. It identifies an assumption the composed-controller guarantee must address.
+
+\paragraph{Compute.}
+For a sequential rollout solver, flat planning costs approximately $I_FTC_F$, with $I_F$ iterations and per-step forward/backward cost $C_F$. A two-level full-plan refinement scheme could cost
+\[
+ C_{\rm hier}\approx I_H(T/k)C_H+
+ (T/k)I_{\rm low}kC_{\rm low}+C_{\rm encoding}.
+\]
+The refinement term still scales with $T$. Actual solver schedules determine total cost. There is no universal exponential speedup from a hierarchy alone. Added encoders and predictors may raise training cost; longer clips can reduce the number of usable training samples.
+
+\section{Next research target}
+The elementary results above establish conditional mechanisms and counterexamples, not novelty. A stronger contribution would connect $\kappa_H,\epsilon_H,\eta_H,\rho_H$ to properties enforced or estimable by H-JEPA training, rather than assuming favorable values.
+
+\begin{enumerate}
+ \item Specify a controlled stochastic environment family, true task cost, and exact flat and hierarchical algorithms.
+ \item Prove when upper representations preserve task value and when macro-actions admit feasible refinements; make approximate Markov and action-sufficiency assumptions explicit.
+ \item Derive finite-sample guarantees for learned representations and dynamics, accounting for temporal dependence and independent evaluation.
+ \item Bound the actual multilevel optimizer or solve comparison instances exactly; guarantees for individual local objectives are insufficient.
+ \item Exhibit proved gain and loss regimes under the same metric and stated compute budget, then check novelty against abstraction and hierarchical-control theory.
+\end{enumerate}
+
+Experiments should separate flat planning, multiple horizons in a shared space, upper-level costs with flat rollout, and the complete hierarchy. Match data and report training and planner compute separately. Sweep task-relevant discarded signal, stride, depth, action ambiguity, temporal dependence, and sample size. Measure real task outcomes as well as latent loss. A finite-capacity probe measures recoverability under that probe; it does not certify Bayes information loss.
+
+Read Theorem~\ref{thm:information} and identity~\eqref{eq:central} first, then the explicit threshold~\eqref{eq:threshold}, and finally the composed-planner guarantee~\eqref{eq:regret}. The research question is when the reduction in learning or optimization difficulty exceeds information and refinement costs.
+
+\begin{thebibliography}{9}
+\bibitem{hjepa}
+W. Zhang, B. Terver, M. Rabbat, Y. LeCun, and R. Balestriero.
+\emph{H-JEPA: End-to-End Learning of Hierarchical World Models for Visual Planning}.
+arXiv:2610.06805v1, October 5, 2026.
+\url{https://arxiv.org/abs/2610.06805v1}.
+Architecture and planning: \S2; existing collapse theory: Appendix L.
+\end{thebibliography}
+\end{document}
