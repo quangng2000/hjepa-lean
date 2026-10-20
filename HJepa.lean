@@ -13,6 +13,10 @@ import HJepa.TaskObjective
 import HJepa.ProtectedChannel
 import HJepa.Anchor
 import HJepa.UniversalPreservation
+import HJepa.EncoderLearning
+import HJepa.StochasticEncoder
+import HJepa.JointOptimization
+import HJepa.ReferenceLearning
 import HJepa.Pooling
 import HJepa.OLS
 import HJepa.Planning

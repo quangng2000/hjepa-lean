@@ -15,6 +15,8 @@ vector targets, and retained-low-level readout guarantees**.
 The objective-design extension adds a **task-protected channel**, a concrete
 repair of the predictive-objective counterexample, and frozen-reference
 reconstruction guarantees for tasks not specified during training.
+The optimizer extension proves **actual linear encoder updates**, exact IID
+SGD expected-risk decay, and an explicit failure of ordinary joint training.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -67,6 +69,19 @@ and the remaining obligations for an H-WavJEPA training guarantee.
   that reference. Approximate reconstruction protects sufficiently insensitive
   readouts, with an explicit error bound. It does not certify the reference's
   quality or protect information it already discarded.
+- **Actual protected-encoder learning:** full-batch gradient descent learns
+  the task coordinate from arbitrary linear encoder weights, with a frozen
+  identity decoder and predictive branch. The learned endpoint is normalized
+  and globally minimizes the protected objective; its task risk is zero at
+  all three carried levels. This is not merely fitting a readout.
+- **Actual encoder SGD:** under the specified noiseless IID two-bit law,
+  sample-gradient updates give exact expected population task risk
+  $`2^{-n}R_0`$ after $`n`$ updates, with the stated learning rate. Some finite
+  sample sequences fail, so this is not a samplewise guarantee.
+- **Label-free encoder optimization:** a full-batch reconstruction-gradient
+  step learns an exact two-coordinate reference encoder from any matrix
+  initialization. No downstream task labels enter this update; it preserves
+  reference readouts but does not compress the reference.
 
 ### Refuted
 
@@ -91,12 +106,16 @@ and the remaining obligations for an H-WavJEPA training guarantee.
   on finite support, preserving every deterministic scalar task is equivalent
   to recoverability of the original features. Merging two positive-mass
   feature values produces a binary task with strictly positive unavoidable risk.
+- **Every initialization succeeds under ordinary joint gradient descent:**
+  a normalized background encoder with a zero decoder is stationary and
+  retains task risk **1** for any full-batch step-size schedule. A different,
+  explicitly guarded block-gradient algorithm avoids this obstruction.
 
 ### Still open
 
-- Whether an **H-WavJEPA optimizer reaches the protected objective's useful
-  population solutions** from finite audio data. Objective alignment is now
-  proved for the specified models below, not neural optimization or sampling.
+- Whether a **full nonlinear H-WavJEPA optimizer learns useful encoders**
+  from finite audio data. The encoder-learning proofs below cover specified
+  linear models with a frozen predictive branch, not jointly trained JEPA.
 - Whether the resulting trained model beats an independently trained WavJEPA
   baseline with matched context, data, parameters, and compute.
 - Generalization guarantees for learned representations on temporally
@@ -115,6 +134,10 @@ optimizer discovers the useful encoders. See
 [`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean),
 [`Anchor.lean`](HJepa/Anchor.lean),
 [`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean),
+[`EncoderLearning.lean`](HJepa/EncoderLearning.lean),
+[`StochasticEncoder.lean`](HJepa/StochasticEncoder.lean),
+[`JointOptimization.lean`](HJepa/JointOptimization.lean),
+[`ReferenceLearning.lean`](HJepa/ReferenceLearning.lean),
 [`Learning.lean`](HJepa/Learning.lean), and
 [`Pooling.lean`](HJepa/Pooling.lean).
 
@@ -186,6 +209,50 @@ on positive-probability support; it does not rule out reversible encoding.
 
 See the [objective design and proof boundaries](THEORY.md#a-protected-objective-with-a-checked-positive-guarantee).
 No new experiments were run for these results.
+
+## An optimizer now learns the protected encoder
+
+On the independent fair signed input bits $`(B,U)`$, train the encoder
+$`R_{a,b}(B,U)=aB+bU`$ to retain the task $`Y=U`$. Freeze the identity task
+decoder and the already-perfect background predictive branch. The actual
+four-example balanced loss equals population task risk:
+
+```math
+R(a,b)=a^2+(b-1)^2,\qquad \mathcal{J}=\lambda R(a,b).
+```
+
+Lean derives the residual gradients from these raw labeled examples; it does
+not give the optimizer the solution. Exact polynomial loss expansions certify
+the first-order gradient coefficients.
+
+All reciprocal-weight learning rates below require $`\lambda\gt0`$.
+
+| Specified training rule | Checked outcome | Main boundary |
+| --- | --- | --- |
+| Full-batch encoder GD, step $`1/(2\lambda)`$ | Learns $`(a,b)=(0,1)`$ from every encoder initialization; zero risk at all three carried levels. | Noiseless supervised linear encoder, fixed decoder and predictive branch, balanced data. |
+| Encoder SGD, step $`1/(4\lambda)`$ | Exact IID expected risk $`\mathbb{E}[R_n]=2^{-n}R_0`$. | Expectation over raw samples, not every sample sequence; identity decoder stays fixed. |
+| Guarded encoder-block GD with a trainable head | Replaces a zero head by 1, performs a curvature-scaled encoder update, then absorbs head scale; reaches the normalized zero-risk solution. | This guard and rescaling are not ordinary gradient steps. Not simultaneous GD or Adam. |
+| Full-batch reference reconstruction GD | Learns an identity matrix encoder from any initial 2-by-2 matrix; every reference readout keeps its exact risk. | No downstream labels; identity decoder, entire raw reference retained, no compression. |
+
+The positive full-batch results use the whitened quadratic geometry and exact
+real arithmetic. Training does not enforce moment normalization at every
+intermediate step; normalized task endpoints are proved where claimed.
+The stochastic theorem is a finite-$`n`$ expected-risk identity, not a
+separately formalized high-probability or almost-sure convergence theorem.
+
+Ordinary simultaneous encoder/head GD does **not** inherit the guarded
+solver's guarantee. With head weight $`w`$, its task loss is
+$`(wa)^2+(wb-1)^2`$. At $`(a,b,w)=(1,0,0)`$ every population gradient is zero,
+although task risk is 1. Conversely, repeating only an uninformative raw
+example can leave the identity-head SGD encoder unchanged at task risk 2.
+The guarded solver may temporarily increase loss when it resets the head;
+its proved guarantee is the final result, not monotone descent at every stage.
+
+These results discharge optimization assumptions for the specified toy
+families, not for arbitrary neural feature learning. The three-level maps
+carry the learned protected channel unchanged; their predictive abstractions
+are not trained by these theorems. See the
+[encoder-learning theory](THEORY.md#an-optimizer-that-learns-the-protected-representation).
 
 ## Start here: the exact gain–loss identity
 
@@ -329,6 +396,10 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | Concrete protected-channel repair | [`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean): `every_global_minimum_preserves_task`, `approximate_protection_beats_old_global_optimum`, `three_levels_preserve_task_at_global_minimum` | Explicit feasible normalized two-channel model. Positive task weight, extra scalar channel and task supervision; no convergence or matched-resource claim. Protected channel is carried unchanged, not forecast. |
 | Frozen-reference reconstruction protection | [`Anchor.lean`](HJepa/Anchor.lean): `exact_reconstruction_preserves_readout`, `objective_bounds_task_risk` | Finite-dimensional fixed reference; exact equality for all reference readouts, approximate bound requires squared Lipschitz sensitivity. Nonnegative predictive-cost interface does not prove joint feasibility. |
 | Unknown-task preservation boundary | [`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean) | On finite population support, all deterministic scalar tasks are preserved iff original features are recoverable. Explicit positive risk lower bound for a binary task separating collided features. No universal lossy-compression guarantee. |
+| Full-batch protected-encoder learning | [`EncoderLearning.lean`](HJepa/EncoderLearning.lean): `calibrated_step_learns_task`, `calibrated_step_global_minimum`, `learned_three_levels_zero` | Actual trainable two-coefficient encoder, balanced raw labeled data, frozen identity decoder/background branch, positive protection weight. Unconstrained intermediate iterates; normalized endpoint. |
+| Stochastic protected-encoder learning | [`StochasticEncoder.lean`](HJepa/StochasticEncoder.lean): `iid_expected_population_risk`, `quarter_step_iid_expected_risk`, `quarter_step_three_level_expected_risks` | Actual sequential sample gradients; explicit IID finite sampling law, noiseless labels, fixed decoder/branch. Finite-n expectation; a repeated-direction counterexample rules out every-sequence success. |
+| Joint training obstruction and guarded block solver | [`JointOptimization.lean`](HJepa/JointOptimization.lean): `simultaneous_gd_failure`, `learned_parameters_from_weighted_gradient`, `learned_model_global_minimum` | Bilinear encoder/head; ordinary GD can be stationary. Successful algorithm includes a non-gradient zero-head guard and prediction-preserving rescaling. Exact full-batch arithmetic, not Adam. |
+| Label-free reference encoder learning | [`ReferenceLearning.lean`](HJepa/ReferenceLearning.lean): `scaled_step_learns_identity`, `learned_global_minimum`, `learned_preserves_every_reference_readout` | Actual matrix encoder trained from reconstruction residuals, balanced two-bit input, fixed identity decoder and already-perfect predictive branch. Full reference retained, not lossy compression or teacher-quality certification. |
 | Approximate ERM and three-level superiority | [`Learning.lean`](HJepa/Learning.lean): `population_oracle_inequality`, `three_level_strict_superiority` | Assumed uniform deviation and approximate empirical minimization on a common task; witnessed hierarchical approximation and certified flat-class lower bound. No concentration or JEPA convergence proof. |
 | Pooling noise, bias, and correlation | [`Pooling.lean`](HJepa/Pooling.lean): `pooled_risk_pairwise`, `pooled_risk_equicorrelated`, `biased_correlated_pooling_improves_iff` | Finite law, aligned scalar observations, specified second moments; centered errors for the constant-bias result. Not exclusive to hierarchy. |
 | OLS gain/loss threshold | [`OLS.lean`](HJepa/OLS.lean): `risk_difference`, `reduced_better_iff`, `risks_equal_iff`, `reduced_worse_iff` | Algebra of explicit rational risk expressions. Gaussian-design / inverse-Wishart expectation formulas are **not** formalized. |
@@ -457,9 +528,10 @@ empirical assumptions. CI runs both build and audit on GitHub.
 3. Read `Expressivity.lean`, `Learning.lean`, `LearningExamples.lean`, `Optimization.lean`, `SampleLearning.lean`, and `Pooling.lean` for positive mechanisms and their limits.
 4. Read `Objective.lean`, `AudioExamples.lean`, and `Counterexamples.lean` to see why the assumptions matter.
 5. Read `TaskObjective.lean`, `ProtectedChannel.lean`, `Anchor.lean`, and `UniversalPreservation.lean` for the protected objective and the limits of unknown-task preservation.
-6. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
-7. Read `OLS.lean` together with its probability-formalization caveat.
-8. Read `THEORY.md` for the proof obligations and `main.tex` for the broader analytical argument.
+6. Read `EncoderLearning.lean`, `StochasticEncoder.lean`, `JointOptimization.lean`, and `ReferenceLearning.lean` for actual encoder updates, learned guarantees, and failure cases.
+7. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
+8. Read `OLS.lean` together with its probability-formalization caveat.
+9. Read `THEORY.md` for the proof obligations and `main.tex` for the broader analytical argument.
 
 Good next milestones are a general measure-theoretic extension, the
 Gaussian OLS expectation proof, the linear spectral theorem, and assumptions

@@ -7,7 +7,9 @@ conditions for learning a good readout and for reducing observation noise.
 The protected-objective extension now proves that a specified task-aware loss
 selects useful representations at every global optimum in a concrete finite
 model, plus conditional guarantees for general finite populations. Whether an
-audio optimizer reaches those solutions and generalizes remains open.
+audio optimizer reaches those solutions and generalizes remains open. The
+encoder-optimization extension now discharges that learning obligation for
+specified linear finite-data models, including an exact IID SGD risk law.
 
 ## Claim ledger
 
@@ -28,6 +30,10 @@ implementation of a neural architecture.
 | A protected-channel objective can exclude those task-discarding optima. | Proved by construction | A normalized two-channel zero-loss witness exists; every positive-weight global optimum recovers the task. Approximate task risk is at most optimization tolerance divided by protection weight. Extra capacity and supervision are explicit. [`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean). |
 | Task-aware optimization controls information lost by the learned encoder. | Proved under explicit conditions | A predictive floor, feasible comparator, and approximate optimization give a conditional-mean information-gap bound. A uniform empirical/population objective bound gives the empirical variant. [`TaskObjective.lean`](HJepa/TaskObjective.lean). |
 | A label-free reconstruction term can protect capabilities of a fixed reference. | Proved under explicit conditions | Exact population recovery preserves every reference readout's risk; approximate recovery needs a sensitivity bound. Does not prove teacher quality or joint predictive feasibility. [`Anchor.lean`](HJepa/Anchor.lean). |
+| An optimizer actually learns the protected encoder, not just its head. | Proved for a specified full-batch algorithm | Residual-gradient updates on balanced raw labeled inputs learn the task coordinate from any initial linear encoder, with a fixed identity decoder. The normalized endpoint is globally optimal. [`EncoderLearning.lean`](HJepa/EncoderLearning.lean). |
+| Stochastic encoder updates have a population-learning guarantee. | Proved for a specified IID model | Exact expected population risk after n updates is 2^-n times initial risk at the chosen learning rate. Some finite sample sequences fail. [`StochasticEncoder.lean`](HJepa/StochasticEncoder.lean). |
+| Ordinary simultaneous encoder/head GD succeeds from every initialization. | Refuted by construction | A normalized background encoder with zero decoder is stationary at task risk 1 for every step-size schedule. A different guarded block-gradient method succeeds. [`JointOptimization.lean`](HJepa/JointOptimization.lean). |
+| A protected reference encoder can be learned without downstream labels. | Proved for a specified full-batch algorithm | A learned matrix encoder reaches exact reconstruction from any initialization; the fixed reference is the whole two-coordinate raw input and the decoder is identity. No compression or teacher-quality gain. [`ReferenceLearning.lean`](HJepa/ReferenceLearning.lean). |
 | Lossy compression can guarantee preservation of every future task. | Refuted on finite support | All-task preservation is equivalent to recovery of the original features on support. Collisions give a binary-task risk lower bound. [`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean). |
 | A smaller error upper bound proves better actual performance. | Refuted by construction | Actual risks 2 and 1 can satisfy respective bounds 3 and 4. [`Learning.lean`](HJepa/Learning.lean). |
 | The specified H-WavJEPA training procedure beats a matched WavJEPA baseline. | Open | Requires a specified objective, data model, optimizer, baseline class, and resource budget, followed by a theorem about those objects. |
@@ -536,6 +542,190 @@ See `preserves_every_task_iff_recoverable` and
 `collision_binary_risk_lower_bound` in
 [`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean).
 
+## An optimizer that learns the protected representation
+
+The objective results above assumed approximate optimization or a population
+loss certificate. The following results instead define the parameter updates
+and derive their output risk. They close that gap for explicit linear models,
+not for a nonlinear H-WavJEPA implementation.
+
+### Full-batch task encoder learning
+
+Use independent fair signed raw inputs $`B,U`$, target $`Y=U`$, and the
+trainable scalar encoder $`E_{a,b}(B,U)=aB+bU`$. Its downstream head is frozen
+to the identity, so these parameters change the representation itself. The
+predictive branch is also frozen at background/identity, with proved zero
+predictive loss. The full protected objective restricted to this family is
+
+```math
+\mathcal{J}(a,b)=\lambda R(a,b),\qquad
+R(a,b)=\mathbb{E}[(aB+bU-U)^2]=a^2+(b-1)^2.
+```
+
+All four raw inputs, each with its actual task label, form a balanced batch.
+Lean proves that this empirical loss equals the population loss for every
+encoder coefficient pair. Averaging the labeled residual gradients yields
+$`\nabla R=(2a,2(b-1))`$. Exact first-order polynomial expansions certify
+these coefficients, including the weighted objective; they are not assumed
+gradient oracles or an update that directly assigns the optimum.
+
+Gradient descent at learning rate $`\alpha`$ gives
+
+```math
+\begin{aligned}
+a_{t+1}&=(1-2\alpha\lambda)a_t,\\
+b_{t+1}-1&=(1-2\alpha\lambda)(b_t-1),\\
+R_t&=(1-2\alpha\lambda)^{2t}R_0.
+\end{aligned}
+```
+
+For $`\lambda\gt0`$, choosing $`\alpha=1/(2\lambda)`$ learns
+$`(a,b)=(0,1)`$ in one step from **every** encoder initialization. This
+reciprocal-curvature result exploits the whitened quadratic input geometry;
+it is not a generally sufficient learning rate for neural networks.
+
+The learned endpoint equals the previously constructed normalized protected
+model. Thus the optimizer output is a global minimum even against all
+admissible models of `ProtectedChannel`, and its task risk is zero at all
+three carried levels. Intermediate iterates are not constrained to be
+moment-normalized; this is not projected gradient descent on that constraint.
+The identity decoder makes this a convex encoder-fitting problem, not a
+claim that arbitrary jointly trained features are equally easy to learn.
+See `exact_objective_increment`, `iterate_population_risk`,
+`calibrated_step_global_minimum`, and `learned_three_levels_zero` in
+[`EncoderLearning.lean`](HJepa/EncoderLearning.lean).
+
+### Actual SGD on raw IID samples
+
+For a raw sample $`x=(B,U)`$, the residual-gradient update of encoder
+coefficients $`c=(a,b)`$ uses
+
+```math
+g_x(c)=2(aB+bU-U)(B,U),\qquad c'=c-\beta g_x(c).
+```
+
+For the weighted objective, the effective step is
+$`\beta=\alpha\lambda`$. Lean certifies the sample gradient by an exact
+sample-loss expansion and proves the weighted-step equivalence. Averaging
+the actual update over the four equally likely raw inputs gives
+
+```math
+\mathbb{E}_{x}[R(c')]
+=(1-4\beta+8\beta^2)R(c).
+```
+
+The code recursively processes each sample using the encoder produced by
+the previous update. It also defines the exact IID expectation over ordered
+sample lists, rather than assuming a contraction or concentration bound.
+Induction then proves, for every finite $`n`$ and every initial encoder:
+
+```math
+\mathbb{E}_{x_1,\ldots,x_n}[R(c_n)]
+=(1-4\beta+8\beta^2)^n R(c_0).
+```
+
+The optimal one-step factor in this constant-step family is $`1/2`$, attained
+at $`\beta=1/4`$, or actual weighted-objective learning rate
+$`\alpha=1/(4\lambda)`$. Consequently
+
+```math
+\mathbb{E}[R(c_n)]=2^{-n}R(c_0).
+```
+
+The same expectation holds at all three levels that retain this learned
+protected coordinate. This is a derived finite-sample population-learning
+identity for a noiseless supervised linear encoder with fixed decoder and
+predictive branch. It is not a separately formalized almost-sure,
+high-probability, or asymptotic convergence theorem.
+
+The distinction matters: from $`c_0=(1,0)`$, repeating the raw input
+$`(B,U)=(+1,+1)`$ gives zero sample gradient forever. The representation stays
+background-only and its population task risk remains 2. Thus the positive
+IID expectation is not a promise about every realized finite training set.
+See `iid_expected_population_risk`, `quarter_step_three_level_expected_risks`,
+and `repeated_direction_risk_two` in
+[`StochasticEncoder.lean`](HJepa/StochasticEncoder.lean).
+
+### Joint encoder/head training: a refutation and a specified remedy
+
+Now let the decoder have trainable weight $`w`$. With the same finite law,
+the exact population loss and gradient are
+
+```math
+\begin{aligned}
+R(a,b,w)&=(wa)^2+(wb-1)^2,\\
+\nabla R&=(2w^2a,\;2w(wb-1),\;2w(a^2+b^2)-2b).
+\end{aligned}
+```
+
+The module derives these from raw-example residuals and certifies the first
+order term by an exact polynomial expansion. At $`(a,b,w)=(1,0,0)`$, the
+encoder is a normalized background feature, all three gradients vanish, and
+task risk is 1. Lean proves that simultaneous full-gradient descent remains
+there for **every step-size schedule and every number of steps**. The
+identity-head proof therefore cannot be silently generalized to joint GD.
+
+For $`\lambda\gt0`$, a different, explicitly defined solver does succeed:
+
+1. If $`w=0`$, initialize it to 1. This is a deliberate guard, not a gradient step.
+2. Freeze the now nonzero head and update only encoder weights with the actual
+   residual gradient, using step $`1/(2\lambda w^2)`$ on the weighted objective.
+3. Absorb the head scale into the encoder:
+   $`(a,b,w)\mapsto(wa,wb,1)`$. Lean proves this preserves decoded predictions.
+
+The block step learns $`(a,b)=(0,1/w)`$; the final reparameterization gives
+$`(0,1,1)`$. Thus this guarded block algorithm learns a normalized zero-risk
+protected model from any initial parameter triple. Its success is not a
+theorem about ordinary simultaneous GD, SGD, or Adam. Near-zero head weights
+also require very large exact steps; finite-precision numerical robustness
+has not been proved.
+The guard itself need not decrease loss: a checked example moves from risk
+1 to 5 before the block update. The theorem concerns the completed solver's
+output, not monotone improvement at every internal stage.
+See `simultaneous_gd_failure`, `learned_parameters_from_weighted_gradient`,
+and `learned_model_global_minimum` in
+[`JointOptimization.lean`](HJepa/JointOptimization.lean).
+
+### Learning reference protection without downstream task labels
+
+For the label-free alternative, fix the reference to the two-coordinate raw
+input $`\Phi(X)=(B,U)`$. Train a 2-by-2 matrix encoder $`E_W(X)=W\Phi(X)`$,
+with a fixed identity decoder. The background predictive branch remains fixed
+and perfect. The code derives the actual reconstruction residual gradients
+from the four balanced raw inputs and proves empirical/population equality:
+
+```math
+A(W)=\mathbb{E}\lVert W\Phi(X)-\Phi(X)\rVert^2
+=\lVert W-I\rVert_F^2,\qquad
+\mathcal{J}(W)=\lambda A(W).
+```
+
+For $`\lambda\gt0`$, one full-batch gradient step of size $`1/(2\lambda)`$ learns $`W=I`$ from
+every matrix initialization. Therefore the actual optimizer output has zero
+reconstruction loss, zero full objective, and global optimality in this
+matrix family. For every reference readout $`q`$ and scalar task target,
+including noisy targets, Lean proves
+
+```math
+R(q\circ E_{W_{\mathrm{learned}}})=R(q\circ\Phi).
+```
+
+The task or its labels need not be specified during reconstruction training.
+This closes the exact-recovery premise of the earlier anchor result for this
+particular optimizer and reference. It does **not** claim that every target
+is predictable with zero risk, that the reference is semantically sufficient,
+or that its information has been compressed. The entire two-coordinate
+reference is retained, and the special balanced data cover the complete
+finite raw-input support. See `scaled_step_learns_identity`,
+`learned_global_minimum`, and `learned_preserves_every_reference_readout` in
+[`ReferenceLearning.lean`](HJepa/ReferenceLearning.lean).
+
+All four optimizer modules use exact real arithmetic. They are mathematical
+update algorithms, not verified floating-point implementations or experiment
+results. The predictive encoder, its dynamics model, and nonlinear hierarchy
+are not learned by these results; only the specified protected encoders and,
+in the guarded construction, their head reparameterization are addressed.
+
 ### Connection to JEPA research
 
 Useful features being representable does not imply that an objective selects
@@ -570,8 +760,10 @@ that hierarchical JEPA training beats flat JEPA training.
    joint feasibility, and explicit preservation/approximation budgets. A
    teacher's semantic quality cannot be inferred from reconstruction alone.
 3. **Derive the learning budgets.** Establish an appropriate concentration
-   result, approximation bound, and optimization guarantee. Temporal audio
-   dependence and learned feature selection must be represented explicitly.
+   result, approximation bound, and optimization guarantee for nonlinear
+   audio training. The new linear full-batch and IID SGD results close these
+   particular toy-model optimization obligations, not temporal audio
+   dependence, learned predictive branches, or numerical stability.
 4. **Establish a real separation.** Prove a lower bound for the specified flat
    learner, or an exact comparison of the two training procedures. A better
    hierarchical upper bound alone is not a separation theorem.
