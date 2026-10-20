@@ -19,27 +19,30 @@ neural architecture universally outperforms another. Novelty is not claimed.
 
 ## Start here: the exact gain–loss identity
 
-Fix a finite probability space, a real-valued target $Y$, lower features $Z$
-with a finite label type, and upper features $U=g(Z)$. Both predictors are evaluated against the **same
+Fix a finite probability space, a real-valued target $`Y`$, lower features $`Z`$
+with a finite label type, and upper features $`U=g(Z)`$. Both predictors are evaluated against the **same
 target and loss**. The code constructs conditional means directly from weighted
 finite sums, including zero-probability fibers, and proves their optimality.
 
-Write $R^*(V)$ for the optimal squared-loss prediction risk from features $V$.
+Write $`R^{*}(V)`$ for the optimal squared-loss prediction risk from features $`V`$.
 The information penalty is
 
-$$
-B = R^*(U)-R^*(Z)
-  = \mathbb E[(\mathbb E[Y\mid Z]-\mathbb E[Y\mid U])^2] \geq 0.
-$$
+```math
+\begin{aligned}
+B &= R^{*}(U)-R^{*}(Z) \\
+  &= \mathbb{E}[(\mathbb{E}[Y\mid Z]-\mathbb{E}[Y\mid U])^2] \geq 0.
+\end{aligned}
+```
 
-For chosen predictors $f_Z$ and $f_U$, let
-$A_V=R(f_V)-R^*(V)$ be excess risk. Then
+For chosen predictors $`f_Z`$ and $`f_U`$, let
+$`A_V=R(f_V)-R^{*}(V)`$ be excess risk. Then
 
-$$
-R(f_U)-R(f_Z)=B+A_U-A_Z,
-\qquad
-R(f_U)<R(f_Z)\iff A_Z-A_U>B.
-$$
+```math
+\begin{aligned}
+R(f_U)-R(f_Z) &= B+A_U-A_Z, \\
+R(f_U)\lt R(f_Z) &\iff A_Z-A_U\gt B.
+\end{aligned}
+```
 
 In plain language: the upper representation cannot beat the information
 available to an optimal lower-level predictor. It can beat an imperfect
@@ -57,25 +60,25 @@ information or of the full conditional distribution.
 For the proposed low/medium/high audio hierarchy, freeze the encoders and use
 the same target, squared loss, probability law, and accessible input context:
 
-$$
+```math
 Z_1=Z,\qquad Z_2=g(Z_1),\qquad Z_3=h(Z_2).
-$$
+```
 
-Let $\mu_\ell=\mathbb E[Y\mid Z_\ell]$, define
-$B_{12}=\mathbb E\|\mu_1-\mu_2\|^2$ and
-$B_{23}=\mathbb E\|\mu_2-\mu_3\|^2$, and let
-$A_\ell=R(f_\ell)-R^*(Z_\ell)$ for each chosen predictor. Lean proves:
+Let $`\mu_\ell=\mathbb{E}[Y\mid Z_\ell]`$, define
+$`B_{12}=\mathbb{E}\lVert \mu_1-\mu_2\rVert^2`$ and
+$`B_{23}=\mathbb{E}\lVert \mu_2-\mu_3\rVert^2`$, and let
+$`A_\ell=R(f_\ell)-R^{*}(Z_\ell)`$ for each chosen predictor. Lean proves:
 
-$$
-R^*(Z_3)-R^*(Z_1)=B_{12}+B_{23},\qquad B_{12},B_{23}\geq0,
-$$
+```math
+R^{*}(Z_3)-R^{*}(Z_1)=B_{12}+B_{23},\qquad B_{12},B_{23}\geq0,
+```
 
-$$
+```math
 R(f_3)-R(f_1)=B_{12}+B_{23}+A_3-A_1.
-$$
+```
 
 Therefore, the highest-level predictor is better **if and only if**
-$A_1-A_3>B_{12}+B_{23}$. The reverse strict inequality makes it worse;
+$`A_1-A_3\gt B_{12}+B_{23}`$. The reverse strict inequality makes it worse;
 equality gives equal risk. The cumulative information gap is zero exactly
 when both adjacent gaps are zero. A later deterministic abstraction cannot
 recover information already lost by an earlier one.
@@ -87,14 +90,14 @@ training losses from different learned target spaces.
 
 ### Keeping all three levels
 
-For the uncompressed bundle $C=(Z_1,Z_2,Z_3)$, Lean also proves
+For the uncompressed bundle $`C=(Z_1,Z_2,Z_3)`$, Lean also proves
 
-$$
-R^*(C)=R^*(Z_1).
-$$
+```math
+R^{*}(C)=R^{*}(Z_1).
+```
 
 Every lower-level predictor lifts to a combined predictor with exactly the
-same risk, and every combined predictor pulls back to a function of $Z_1$.
+same risk, and every combined predictor pulls back to a function of $`Z_1`$.
 Thus both have the same achievable risks when **all functions** are allowed.
 The bundle adds no population information, but may change how easily a
 restricted learner uses the information. This equality is about access to
@@ -112,7 +115,7 @@ trained encoder preserves the baseline's performance.
 | [`AudioExamples.lean`](HJepa/AudioExamples.lean) | Exact finite witnesses: both adjacent steps lose signal, yet an upper predictor can beat a poorly chosen lower predictor. |
 
 The finite witnesses use two independent fair signs and target
-$Y=S_1+2S_2$. The low level keeps both signs, the middle keeps only $S_1$,
+$`Y=S_1+2S_2`$. The low level keeps both signs, the middle keeps only $`S_1`$,
 and the high level is constant. The checked optimal risks are **0, 4, 5**,
 with adjacent gaps **4 and 1**. A high-level constant-zero predictor has risk
 **5**, while a deliberately poor low-level constant-three predictor has risk
@@ -128,7 +131,7 @@ finite low/middle feature-label types (and finite bundled labels for the
 readout result); one common scalar or finite-dimensional vector target.
 Zero-probability outcomes are allowed. The names low/medium/high do not prove
 that the levels learn particular time scales or semantics. If an upper
-feature pools a time window, $Z_1$ must include that **entire same-context
+feature pools a time window, $`Z_1`$ must include that **entire same-context
 window**, not a single low-level token. Independently trained flat and
 hierarchical encoders are not ordered by these theorems. Continuous-population
 generalization, training dynamics, and passive-audio planning guarantees
@@ -152,44 +155,44 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | Rollout error and cost calibration | [`Rollout.lean`](HJepa/Rollout.lean): `dynamics_error_recurrence`, `rollout_error_bound`, `task_cost_calibration` | Explicit local-error, Lipschitz, and task-calibration assumptions; deterministic fixed-horizon statements. |
 | No improvement from regrouping inherited error bounds | `geometric_blocking`, `inherited_full_bound_equality` | Exact algebraic identity; includes zero horizons and multiplier one. Not a lower bound on actual learned-model error. |
 | Perfect latent prediction can fail control | [`Counterexamples.lean`](HJepa/Counterexamples.lean): `abstract_rollout_exact`, `abstract_policy_success_half`, `full_policy_success_one` | Actual finite four-state average; arbitrary deterministic background-only policy, compared with full-state access. |
-| Sign-discarding prediction loss | `squared_sign_risk_at_least_one`, `zero_predictor_attains_one`, `retained_sign_risk_zero` | Fair finite $\pm1$ target: optimal squared-loss risk one versus zero. |
+| Sign-discarding prediction loss | `squared_sign_risk_at_least_one`, `zero_predictor_attains_one`, `retained_sign_risk_zero` | Fair finite $`\pm1`$ target: optimal squared-loss risk one versus zero. |
 | Gaussian AR / spectral feature-selection argument | Analytical note only | No Lean proof of its stochastic process or matrix optimization result yet. |
 | Trained nonlinear H-JEPA vs independently trained flat JEPA | Not proved | No verification of neural training, generalization, SIGReg, experimental scores, or closed-loop control. |
 
 ## Planning: where gains and losses enter
 
-Let $J(a)$ be true primitive-plan cost, $Q(b)$ the macro-plan surrogate, and
-$\mathcal R(b)$ the **actual refinement procedure**. Define
+Let $`J(a)`$ be true primitive-plan cost, $`Q(b)`$ the macro-plan surrogate, and
+$`\mathcal{R}(b)`$ the **actual refinement procedure**. Define
 
-$$
-\rho=\inf_b J(\mathcal R(b))-\inf_a J(a)\geq0.
-$$
+```math
+\rho=\inf_b J(\mathcal{R}(b))-\inf_a J(a)\geq0.
+```
 
 Assume uniform calibration
-$|Q(b)-J(\mathcal R(b))|\leq\delta$ and a returned macro plan whose surrogate
-cost is within $\eta$ of every competitor. Lean proves
+$`|Q(b)-J(\mathcal{R}(b))|\leq\delta`$ and a returned macro plan whose surrogate
+cost is within $`\eta`$ of every competitor. Lean proves
 
-$$
-J(\mathcal R(\hat b))-\inf_a J(a)\leq2\delta+\eta+\rho.
-$$
+```math
+J(\mathcal{R}(\hat{b}))-\inf_a J(a)\leq2\delta+\eta+\rho.
+```
 
-Here $\delta$ is cost-model error, $\eta$ is optimization error of the **whole
-composed planner**, and $\rho$ is the cost of restricting available plans.
+Here $`\delta`$ is cost-model error, $`\eta`$ is optimization error of the **whole
+composed planner**, and $`\rho`$ is the cost of restricting available plans.
 The flat planner is identity refinement and has zero restriction gap.
 Lower values of these bounds do not, by themselves, order actual achieved costs.
 Accurate latent prediction alone does not establish task-cost calibration.
 
 For rollout error, Lean also proves
 
-$$
+```math
 e_{t+1}\leq\epsilon+Le_t
 \implies
 e_N\leq L^Ne_0+\epsilon S_N(L),
 \qquad S_N(L)=\sum_{i=0}^{N-1}L^i,
-$$
+```
 
-with $L\geq0$. Grouping $k$ inherited elementary steps gives
-$S_k(L)S_N(L^k)=S_{kN}(L)$: a shorter macro horizon alone does not improve this
+with $`L\geq0`$. Grouping $`k`$ inherited elementary steps gives
+$`S_k(L)S_N(L^k)=S_{kN}(L)`$: a shorter macro horizon alone does not improve this
 bound. A better learned predictor or optimization procedure must supply a gain.
 
 ## Concrete checked examples
@@ -204,20 +207,20 @@ bound. A better learned predictor or optimization procedure must supply a gain.
   success **1/2**. A policy that also observes the hidden mode succeeds with
   probability **1**. This does not show that the full hierarchy fails: lower
   levels may retain the mode.
-- OLS expressions: with $n=30$, retained dimension $d=2$, discarded dimension
-  $q=8$, and noise variance $1$, the threshold is **$8/19$**. Discarded signal
-  variance $1/10$ improves the expression; variance $1$ worsens it. These are
+- OLS expressions: with $`n=30`$, retained dimension $`d=2`$, discarded dimension
+  $`q=8`$, and noise variance $`1`$, the threshold is **$`8/19`$**. Discarded signal
+  variance $`1/10`$ improves the expression; variance $`1`$ worsens it. These are
   algebraic examples, not measured H-JEPA scores.
 
 The regression comparison uses
 
-$$
+```math
 R_{\mathrm{full}}=\sigma^2\frac{n-1}{n-d-q-1},\qquad
 R_{\mathrm{reduced}}=(\sigma^2+B)\frac{n-1}{n-d-1}.
-$$
+```
 
-For $d,q\geq0$ and $n>d+q+1$, Lean verifies
-$R_{\mathrm{reduced}}<R_{\mathrm{full}}\iff B<\sigma^2q/(n-d-q-1)$.
+For $`d,q\geq0`$ and $`n\gt d+q+1`$, Lean verifies
+$`R_{\mathrm{reduced}}\lt R_{\mathrm{full}}\iff B\lt \sigma^2q/(n-d-q-1)`$.
 Connecting these expressions to expected test error requires the Gaussian OLS
 assumptions and probability argument in the note, outside the current Lean proof.
 
