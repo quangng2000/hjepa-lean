@@ -17,6 +17,83 @@ This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
 neural architecture universally outperforms another. Novelty is not claimed.
 
+## What is proved, refuted, and still open
+
+The [theory ledger](THEORY.md) separates proved mechanisms, refuted claims,
+and the remaining obligations for an H-WavJEPA training guarantee.
+
+### Proved
+
+- **Constructive benefit:** on four independent fair signs, a fixed three-level
+  product hierarchy makes the parity target linearly readable. Every affine
+  low- or middle-level predictor has squared risk at least **1**; a high-level
+  affine predictor achieves **0**. This compares entire readout classes, not
+  one deliberately bad baseline. A nonlinear flat predictor also achieves 0.
+- **Concrete readout fitting:** two deliberately balanced raw examples exactly
+  reproduce the population risk for every high affine readout. Any approximate
+  empirical minimizer with tolerance below 1 beats every low/middle affine
+  readout. This proves a finite construction, not a random-sample guarantee.
+- **An actual optimizer:** for that fixed-feature, balanced quadratic loss,
+  residual-based gradient descent with step size **1/2** reaches the unique
+  zero-risk readout in one step from **any initialization**. The exact risk
+  contraction and unstable-step failure are proved, not assumed.
+- **Random-sample supervised learning:** an explicit label-based affine fitter
+  on the fixed parity feature has expected population risk **$`4/2^n`$** for
+  $`n\geq1`$ IID raw examples. Three examples give expected risk **1/2**, below
+  the affine low/middle lower bound **1**, even when the competing coefficients
+  are chosen from the same training data. All training examples are fitted,
+  but a sample containing only one sign still gives test risk **2**. This is
+  an expectation result for a noiseless finite task, not an audio benchmark.
+- **Conditional learning guarantee:** approximate empirical-risk minimization
+  under a uniform empirical/population deviation bound costs at most
+  $`2\varepsilon+\eta`$ beyond a valid comparator. Strict superiority requires
+  a lower bound for the competing class, not just a smaller upper bound.
+- **Temporal pooling tradeoff:** averaging aligned observations reduces
+  uncorrelated noise, but bias and shared errors can remove the gain. The
+  exact conditions are formalized; the same averaging is available to a flat
+  predictor with access to the whole window.
+
+### Refuted
+
+- **Hierarchy always improves optimal prediction:** deterministic abstraction
+  cannot lower unrestricted Bayes risk on the same task and context. A checked
+  three-level example has optimal risks **0, 4, 5** as signal is discarded.
+- **Perfect latent dynamics guarantee useful control:** a nonconstant
+  background representation predicts perfectly but limits every policy using
+  it to success probability **1/2**, versus **1** with full-state access.
+- **Variance normalization and globally optimal predictive loss guarantee
+  useful features:** in a finite model, **every global optimum** of squared
+  next-latent prediction with mean-zero/unit-variance encoders discards the
+  current task bit. Every downstream readout then has risk at least **1**,
+  while a different normalized encoder achieves **0**. This is a counterexample
+  for that specified objective, **not** a verification of SIGReg or full H-JEPA.
+- **More averaging always helps:** perfectly shared errors give no gain;
+  pooling bias can exceed the variance saved.
+- **A smaller risk upper bound establishes better actual performance:**
+  explicit counterexample. A superiority proof needs a valid opposing lower
+  bound or another justified comparison of actual risks.
+
+### Still open
+
+- Whether a specified **H-WavJEPA training objective and optimizer learn useful
+  encoders**, rather than merely admitting them.
+- Whether the resulting trained model beats an independently trained WavJEPA
+  baseline with matched context, data, parameters, and compute.
+- Generalization guarantees for learned representations on temporally
+  dependent audio, and preservation of task-relevant fast transients.
+- The general measure-theoretic extension, Gaussian OLS expectation proof,
+  and stochastic spectral argument described in the research note.
+
+These are mathematical mechanisms and limitations, not evidence that a JEPA
+optimizer discovers the useful encoders. See
+[`Expressivity.lean`](HJepa/Expressivity.lean),
+[`LearningExamples.lean`](HJepa/LearningExamples.lean),
+[`Optimization.lean`](HJepa/Optimization.lean),
+[`SampleLearning.lean`](HJepa/SampleLearning.lean),
+[`Objective.lean`](HJepa/Objective.lean),
+[`Learning.lean`](HJepa/Learning.lean), and
+[`Pooling.lean`](HJepa/Pooling.lean).
+
 ## Start here: the exact gain–loss identity
 
 Fix a finite probability space, a real-valued target $`Y`$, lower features $`Z`$
@@ -134,7 +211,7 @@ that the levels learn particular time scales or semantics. If an upper
 feature pools a time window, $`Z_1`$ must include that **entire same-context
 window**, not a single low-level token. Independently trained flat and
 hierarchical encoders are not ordered by these theorems. Continuous-population
-generalization, training dynamics, and passive-audio planning guarantees
+generalization, neural encoder-training dynamics, and passive-audio planning guarantees
 remain outside the formalization.
 
 ## Formalization coverage
@@ -150,6 +227,13 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | Finite-dimensional vector targets | [`Vector.lean`](HJepa/Vector.lean) | Sum of coordinatewise real squared losses on a finite law; not a general measure-theoretic or Hilbert-space formalization. |
 | Retained-low-level combined readout | [`Readout.lean`](HJepa/Readout.lean): `three_level_bundle_bayes_risk_eq`, `three_level_achievable_risk_iff` | Deterministic bundle with the original low-level feature retained; finite labels; unrestricted predictors, not guaranteed training behavior. |
 | Three-level signal-loss and imperfect-predictor witnesses | [`AudioExamples.lean`](HJepa/AudioExamples.lean): `three_level_bayes_risks`, `adjacent_information_gaps`, `exact_gain_loss_budget` | Explicit uniform four-outcome law; no neural or audio experiment. |
+| Strict advantage over affine readout classes | [`Expressivity.lean`](HJepa/Expressivity.lean): `low_affine_risk`, `middle_affine_risk`, `high_strictly_beats_affine_readouts`, `all_bayes_risks_zero` | Fixed four-sign parity task and handcrafted product encoders; nonlinear flat readouts solve it too. No matched-compute or encoder-learning theorem. |
+| Balanced two-example readout fitting | [`LearningExamples.lean`](HJepa/LearningExamples.lean): `balanced_empirical_eq_population`, `identity_exact_empirical_minimizer`, `approximate_fit_beats_all_affine_readouts` | Two deliberately selected parity examples; fixed high features. Exact empirical/population equality is proved, not assumed. No random-sampling or optimizer-convergence claim. |
+| Explicit readout optimization | [`Optimization.lean`](HJepa/Optimization.lean): `exact_loss_increment`, `iterate_population_risk`, `half_step_beats_all_affine_readouts` | Actual residual-based gradient steps on the balanced fixed-feature loss; arbitrary initialization. This closes the fitting assumption for that problem, not for JEPA encoder learning. |
+| Exact IID learning risk | [`SampleLearning.lean`](HJepa/SampleLearning.lean): `iid_labeled_expected_population_risk`, `three_samples_beat_trained_affine_readouts` | An explicit fitter reads arbitrary real labels; its guarantee is proved on the fixed noiseless parity task by averaging IID raw samples. Compares against arbitrary sample-dependent affine fitting rules. Expected risk, not samplewise superiority or an optimal sample-complexity claim. |
+| Predictive objective can force task-information loss | [`Objective.lean`](HJepa/Objective.lean): `every_global_optimum_task_risk_at_least_one`, `objective_and_task_rank_oppositely` | Static background and independent current/future task bits; shared scalar encoder, squared next-latent loss, zero mean/unit second moment. All global optima fail the current-bit downstream task. Not SIGReg or full H-JEPA. |
+| Approximate ERM and three-level superiority | [`Learning.lean`](HJepa/Learning.lean): `population_oracle_inequality`, `three_level_strict_superiority` | Assumed uniform deviation and approximate empirical minimization on a common task; witnessed hierarchical approximation and certified flat-class lower bound. No concentration or JEPA convergence proof. |
+| Pooling noise, bias, and correlation | [`Pooling.lean`](HJepa/Pooling.lean): `pooled_risk_pairwise`, `pooled_risk_equicorrelated`, `biased_correlated_pooling_improves_iff` | Finite law, aligned scalar observations, specified second moments; centered errors for the constant-bias result. Not exclusive to hierarchy. |
 | OLS gain/loss threshold | [`OLS.lean`](HJepa/OLS.lean): `risk_difference`, `reduced_better_iff`, `risks_equal_iff`, `reduced_worse_iff` | Algebra of explicit rational risk expressions. Gaussian-design / inverse-Wishart expectation formulas are **not** formalized. |
 | Composed-planner regret | [`Planning.lean`](HJepa/Planning.lean): `composite_planner_regret`, `composite_planner_regret_of_infimum`, `flat_planner_regret`, `exact_calibration_optimality` | True cost bounded below; a candidate exists; uniform task-cost calibration and global approximate surrogate optimization. Infima need not be attained. |
 | Rollout error and cost calibration | [`Rollout.lean`](HJepa/Rollout.lean): `dynamics_error_recurrence`, `rollout_error_bound`, `task_cost_calibration` | Explicit local-error, Lipschitz, and task-calibration assumptions; deterministic fixed-horizon statements. |
@@ -257,7 +341,7 @@ lake exe cache get \
   Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
 ```
 
-`lake build` checks all nine modules through [`HJepa.lean`](HJepa.lean).
+`lake build` checks all proof modules through [`HJepa.lean`](HJepa.lean).
 `lake env lean Audit.lean` additionally rejects transitive axiom dependencies
 outside `propext`, `Classical.choice`, and `Quot.sound`. It scans public and
 private declarations in the `HJepa` namespace, including definitions, and
@@ -273,10 +357,11 @@ empirical assumptions. CI runs both build and audit on GitHub.
 
 1. Start with `Abstraction.lean` for the central theorem and explicit finite laws.
 2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.
-3. Read `AudioExamples.lean` and `Counterexamples.lean` to see why the assumptions matter.
-4. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
-5. Read `OLS.lean` together with its probability-formalization caveat.
-6. Read `main.tex` for the broader argument and research directions.
+3. Read `Expressivity.lean`, `Learning.lean`, `LearningExamples.lean`, `Optimization.lean`, `SampleLearning.lean`, and `Pooling.lean` for positive mechanisms and their limits.
+4. Read `Objective.lean`, `AudioExamples.lean`, and `Counterexamples.lean` to see why the assumptions matter.
+5. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
+6. Read `OLS.lean` together with its probability-formalization caveat.
+7. Read `THEORY.md` for the proof obligations and `main.tex` for the broader analytical argument.
 
 Good next milestones are a general measure-theoretic extension, the
 Gaussian OLS expectation proof, the linear spectral theorem, and assumptions

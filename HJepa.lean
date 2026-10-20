@@ -3,6 +3,13 @@ import HJepa.ThreeLevel
 import HJepa.Vector
 import HJepa.Readout
 import HJepa.AudioExamples
+import HJepa.Expressivity
+import HJepa.Learning
+import HJepa.LearningExamples
+import HJepa.Optimization
+import HJepa.SampleLearning
+import HJepa.Objective
+import HJepa.Pooling
 import HJepa.OLS
 import HJepa.Planning
 import HJepa.Rollout

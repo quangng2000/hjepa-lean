@@ -1,0 +1,382 @@
+# H-WavJEPA theoretical evidence and proof obligations
+
+Hierarchy alone does not guarantee better prediction. The checked results
+establish a narrower positive claim: **nonlinear composition can make existing
+task information accessible to a restricted readout**. They also establish
+conditions for learning a good readout and for reducing observation noise.
+Whether a particular H-WavJEPA objective and optimizer learn those useful
+representations remains an open obligation.
+
+## Claim ledger
+
+All Lean results below concern the stated mathematical models, not a verified
+implementation of a neural architecture.
+
+| Claim | Verdict | Evidence and boundary |
+| --- | --- | --- |
+| Deterministic hierarchy improves optimal prediction from the same context. | Refuted in general | Bayes risk can only increase under abstraction. The finite three-level witness has optimal risks 0, 4, 5. [`ThreeLevel.lean`](HJepa/ThreeLevel.lean), [`AudioExamples.lean`](HJepa/AudioExamples.lean). |
+| Composition can strictly help a restricted readout. | Proved by construction | Four-sign parity has optimal affine risks 1, 1, 0 across three fixed levels. All unrestricted Bayes risks are 0. [`Expressivity.lean`](HJepa/Expressivity.lean). |
+| A finite training set can transfer this advantage to fitted readouts. | Proved by construction | Two balanced examples give exact empirical/population equality for every high affine readout; fitting tolerance below 1 implies strict superiority. [`LearningExamples.lean`](HJepa/LearningExamples.lean). |
+| A specified optimizer reaches the useful fixed-feature readout. | Proved by construction | Residual-based gradient descent with step size 1/2 reaches zero risk from every initialization on the balanced quadratic loss. [`Optimization.lean`](HJepa/Optimization.lean). |
+| The readout advantage survives random training samples. | Proved for a specified learner | A label-based affine fitter on the fixed parity feature has expected population risk 4/2^n for n positive IID raw examples; with three examples this is 1/2. [`SampleLearning.lean`](HJepa/SampleLearning.lean). |
+| Fitting a readout transfers the representation advantage to actual risk. | Proved under explicit conditions | Approximate empirical minimization plus uniform deviation gives an oracle bound; a certified flat-class lower bound establishes strict superiority. [`Learning.lean`](HJepa/Learning.lean). |
+| A longer averaging window always improves prediction. | Refuted in general | Bias can exceed the noise saved; perfectly shared error gives no gain. Exact thresholds are proved. [`Pooling.lean`](HJepa/Pooling.lean). |
+| Perfect latent prediction guarantees useful control. | Refuted by construction | A nonconstant background-only representation has exact dynamics, but every policy using only it succeeds with probability 1/2 rather than 1. [`Counterexamples.lean`](HJepa/Counterexamples.lean). |
+| Global predictive optimality plus variance normalization guarantees useful features. | Refuted by construction | Every global optimum in a finite shared-encoder next-latent prediction model loses the current task bit, despite an admissible encoder retaining it. [`Objective.lean`](HJepa/Objective.lean). |
+| A smaller error upper bound proves better actual performance. | Refuted by construction | Actual risks 2 and 1 can satisfy respective bounds 3 and 4. [`Learning.lean`](HJepa/Learning.lean). |
+| The specified H-WavJEPA training procedure beats a matched WavJEPA baseline. | Open | Requires a specified objective, data model, optimizer, baseline class, and resource budget, followed by a theorem about those objects. |
+
+## What the comparison must hold fixed
+
+Use one population law, downstream target, loss, and accessible input context.
+For nested features, write
+
+```math
+Z_1=Z,\qquad Z_2=g(Z_1),\qquad Z_3=h(Z_2),\qquad
+R(f)=\mathbb{E}[(Y-f)^2].
+```
+
+If an upper encoder consumes a window, the lower baseline must have access to
+that entire window. A single token versus a pooled window is not a
+same-information comparison. The displayed composed, frozen encoders satisfy
+the nesting assumption; independently trained encoders need not.
+
+The unrestricted Bayes predictor minimizes risk over all functions of its
+features. A restricted readout class permits only specified functions, such as
+affine maps. Neither means the full neural architecture has the same parameter,
+compute, or training budget. Different levels' latent JEPA losses also have
+different targets and cannot be substituted for this common downstream risk.
+
+## A constructive three-level advantage
+
+Let four independent fair signs be the input and their product the target:
+
+```math
+\begin{aligned}
+Y&=S_1S_2S_3S_4, & S_i&\in\{-1,1\},\\
+Z_1&=(S_1,S_2,S_3,S_4),\\
+Z_2&=(S_1S_2,S_3S_4),\\
+Z_3&=(S_1S_2)(S_3S_4).
+\end{aligned}
+```
+
+The Lean proof expands the exact finite expectation over all sixteen equally
+likely inputs. For every real choice of affine coefficients:
+
+```math
+\begin{aligned}
+R\!\left(b+\sum_{i=1}^{4}a_i S_i\right)
+  &=1+b^2+\sum_{i=1}^{4}a_i^2\geq1,\\
+R(b+a_1S_1S_2+a_2S_3S_4)
+  &=1+b^2+a_1^2+a_2^2\geq1,\\
+R(b+aZ_3)&=(1-a)^2+b^2.
+\end{aligned}
+```
+
+Zero coefficients attain the first two lower bounds; the high readout with
+zero bias and unit slope attains risk zero. This proves strict improvement
+against **every affine low and middle readout**. Intuitively, the target has
+zero correlation with each individual low feature and each middle feature,
+but composition exposes it as a single high feature.
+
+The encoders are handcrafted using the task structure. A nonlinear flat
+readout can compute the same product, and unrestricted Bayes risk is zero at
+every level. Thus the result is an accessibility mechanism, not added
+information, a theorem that JEPA learns parity, or a compute-efficiency result.
+The proof is `high_strictly_beats_affine_readouts`; the equal-information check
+is `all_bayes_risks_zero` in [`Expressivity.lean`](HJepa/Expressivity.lean).
+
+## A concrete fitting guarantee without a deviation assumption
+
+Choose the raw examples $`(+1,+1,+1,+1)`$ and $`(-1,+1,+1,+1)`$ with equal
+weights and their actual parity labels. The high feature is respectively
+$`+1`$ and $`-1`$, just as in the full population. For every high affine
+readout, the empirical squared risk on these two examples is therefore
+**exactly equal** to its population risk over all sixteen raw inputs.
+
+The proof calculates that equality from the examples, rather than assuming
+it. The identity readout is an exact empirical minimizer. Every
+$`\eta`$-approximate empirical minimizer satisfies
+
+```math
+R(\hat f_3)\leq\eta.
+```
+
+Thus $`\eta\lt1`$ makes the fitted high readout strictly better than every
+affine low or middle readout. This supplies an explicit, nonvacuous learning
+construction. It does not claim two random examples suffice, that an arbitrary
+optimizer converges, or that the handcrafted encoders are learned. See
+`balanced_empirical_eq_population` and
+`approximate_fit_beats_all_affine_readouts` in
+[`LearningExamples.lean`](HJepa/LearningExamples.lean).
+
+## An optimizer with a checked risk trajectory
+
+For the balanced fixed-feature problem, define gradient descent using the
+average of the two examples' squared-loss residual gradients. The proof derives
+the gradient $`(2b,2(a-1))`$ and certifies its linear term by an exact loss
+expansion with quadratic remainder. For step size $`\alpha`$ and any initial
+coefficients, the implemented mathematical recurrence satisfies
+
+```math
+R_t=\left((1-2\alpha)^2\right)^t R_0.
+```
+
+A step of size $`1/2`$ reaches $`(b,a)=(0,1)`$ in one step, hence zero
+population risk and strict superiority over every affine low or middle
+readout. Steps $`0\lt\alpha\lt1`$ reduce nonzero error; $`\alpha=1`$ preserves
+it; $`\alpha\gt1`$ increases it. Thus even this simple fitting guarantee
+depends on the update rule and step size.
+
+This discharges the optimizer condition for a particular quadratic readout
+problem. It does not analyze gradients through the encoders, random
+initialization of a full network, or JEPA's self-supervised objective. See
+`exact_loss_increment`, `iterate_population_risk`, and
+`half_step_beats_all_affine_readouts` in
+[`Optimization.lean`](HJepa/Optimization.lean).
+
+## Random training samples and exact generalization risk
+
+Now draw raw four-sign inputs independently from the original population,
+encode each with the fixed high feature, and pair it with its actual target
+label. The learner accepts arbitrary real labels. It stores the first label
+seen for each of the two feature signs. With both signs observed, it solves
+the two affine equations:
+
+```math
+b=\frac{y_++y_-}{2},\qquad a=\frac{y_+-y_-}{2}.
+```
+
+With only one sign observed, it returns the constant observed label. The
+coefficients are calculated from the data; the algorithm is not simply given
+the correct parity readout. Repeated contradictory labels are outside this
+noiseless guarantee.
+
+The proof explicitly averages IID raw samples, proves that their encoded signs
+are fair, and derives the learner's expected population risk:
+
+```math
+\mathbb{E}_{\mathrm{training\ sample}}[R(\hat f_n)]
+=\frac{4}{2^n},\qquad n\geq1.
+```
+
+The learner interpolates every training example, but on a one-sign sample its
+population risk is 2; when both signs occur it is 0. Thus zero training error
+does not give a per-sample test guarantee.
+
+| Number of IID examples | Expected population risk | Best affine raw-input risk |
+| --- | --- | --- |
+| 1 | 2 | 1 |
+| 2 | 1 | 1 |
+| 3 | 1/2 | 1 |
+
+The comparison also covers affine coefficients selected from the same random
+training dataset: every such fitted low or middle predictor has population
+risk at least 1 for each dataset, hence expected risk at least 1. Thus the
+three-example result compares learning rules, not just fixed baseline weights.
+
+This is a concrete finite-sample learning result with a derived sampling law,
+not an assumed uniform-deviation bound. It concerns a particular supervised
+readout rule on known, fixed nonlinear features. It is not a lower bound on
+the samples needed by every learner, and it does not show JEPA discovers the
+features. A flat nonlinear predictor can solve the same task. See
+`iid_labeled_expected_population_risk`, `learned_raw_training_loss_zero`, and
+`three_samples_beat_trained_affine_readouts` in
+[`SampleLearning.lean`](HJepa/SampleLearning.lean).
+
+## General conditional learning bound
+
+For a fixed admissible class, suppose empirical risk uniformly approximates
+population risk and the returned predictor approximately minimizes empirical
+risk:
+
+```math
+|R(f)-\widehat R(f)|\leq\varepsilon\quad\text{for every admissible }f,
+\qquad
+\widehat R(\hat f)\leq\widehat R(f)+\eta
+\quad\text{for every admissible }f.
+```
+
+Then, for each admissible comparator,
+
+```math
+R(\hat f)\leq R(f)+2\varepsilon+\eta.
+```
+
+The proof passes from population to empirical risk, uses approximate
+minimization, then returns to population risk. It is not a proof that a
+particular sample size gives the deviation bound, or that gradient descent
+achieves the optimization tolerance.
+
+For three levels, let the information losses be
+$`B_{12}=R^{*}(Z_2)-R^{*}(Z_1)`$ and
+$`B_{23}=R^{*}(Z_3)-R^{*}(Z_2)`$. Suppose a high-level comparator has excess
+risk at most $`a`$ relative to its own Bayes predictor. Lean proves
+
+```math
+R(\hat f_3)\leq R^{*}(Z_1)+B_{12}+B_{23}+a+2\varepsilon+\eta.
+```
+
+To prove actual superiority, also establish that **every** admissible flat
+predictor has risk at least $`R^{*}(Z_1)+\Delta`$. The sufficient condition is
+
+```math
+B_{12}+B_{23}+a+2\varepsilon+\eta\lt\Delta.
+```
+
+This compares a hierarchical upper bound with a flat lower bound, not two
+upper bounds. In the parity construction, both information losses and the
+best high approximation error vanish, while the affine flat lower gap is 1.
+A justified $`2\varepsilon+\eta\lt1`$ therefore suffices. If the flat class
+contains the Bayes predictor, it has no positive lower gap to exploit.
+See `three_level_strict_superiority` in [`Learning.lean`](HJepa/Learning.lean).
+
+For data-dependent features or class selection, the deviation bound must
+cover that selection too. A bound for a frozen class cannot silently be reused
+after adapting the encoder to the same data.
+With squared loss over all unbounded affine coefficients, a finite uniform
+bound fails if empirical and population quadratic risks differ in any
+coefficient-dependent term. The balanced construction above proves exact equality;
+ordinary finite-sample applications need suitable class restrictions and a
+separate deviation argument.
+
+## Temporal noise reduction and its limits
+
+Consider aligned scalar observations $`X_i=Y+e_i`$ of one common target over
+a nonempty window of size $`n`$. The pooled prediction is their arithmetic
+mean. Without any independence assumption, Lean proves
+
+```math
+R\!\left(\frac1n\sum_i X_i\right)
+=\frac{1}{n^2}\sum_{i,j}\mathbb{E}[e_i e_j].
+```
+
+If the errors are centered, each has second moment $`v`$, and each distinct
+pair has cross moment $`c`$, then adding a constant pooling bias $`b`$ gives
+
+```math
+R_{\mathrm{pool}}=b^2+\frac{v}{n}+\frac{n-1}{n}c,
+\qquad R_{\mathrm{single}}=v.
+```
+
+Consequently,
+
+```math
+R_{\mathrm{pool}}\lt R_{\mathrm{single}}
+\iff b^2\lt(v-c)\left(1-\frac1n\right).
+```
+
+With zero bias and zero cross moments, risk becomes $`v/n`$. If errors are
+perfectly shared, $`c=v`$, averaging provides no gain even with zero bias.
+Signal variation or misalignment can erase noise savings. The constant-bias
+model is one explicit case, not a theorem covering all audio transients.
+The moment hypotheses describe actual errors under the finite law; they do
+not assert that arbitrary choices of $`v,c`$ are realizable.
+
+These are theorems about averaging, available to a flat predictor too. They
+motivate a possible H-WavJEPA design only if its representations actually
+implement such an operation. H-JEPA's reported experiments use pointwise
+upper state encoders with window size one; the paper does not establish
+literal state averaging as the source of its gains.
+[H-JEPA Section 2.1](https://arxiv.org/html/2610.06805v1#S2.SS1).
+
+See `pooled_risk_pairwise` and `biased_correlated_pooling_improves_iff` in
+[`Pooling.lean`](HJepa/Pooling.lean).
+
+## What a JEPA objective still has to establish
+
+### A checked failure of objective alignment
+
+Let the current input be $`(B,U)`$ and the future input $`(B,V)`$, with all
+three bits independent and fair. The background $`B`$ remains fixed; the task
+bit is independently resampled. Optimize squared next-latent prediction with
+a shared scalar encoder, under zero-mean and unit-second-moment constraints:
+
+```math
+\mathcal{L}(E,P)
+=\mathbb{E}\big[(E(B,V)-P(E(B,U)))^2\big],
+\qquad \mathbb{E}[E]=0,\quad \mathbb{E}[E^2]=1.
+```
+
+The background encoder with identity predictor achieves loss zero and obeys
+the normalization constraint. Thus the global minimum is zero. Full support
+of the finite law forces every zero-loss encoder to satisfy
+$`E(b,u)=E(b,\mathrm{false})`$: for the same current input, it must predict both
+possible future task bits exactly, so it cannot distinguish them in its own
+encoding.
+
+Consequently, **every global optimum** discards the current task bit. For the
+downstream target $`Y=\operatorname{sign}(U)`$, every readout of such an encoder
+has risk at least 1. The normalized task encoder
+$`E(B,U)=\operatorname{sign}(U)`$ instead permits downstream risk zero, but every
+predictor paired with it incurs next-latent loss at least 1.
+
+This proves a strict mismatch between the training objective and the specified
+downstream task, not merely a failure of one optimizer to find a good optimum.
+The example concerns a finite moment-normalized objective, **not** SIGReg, EMA
+targets, or the complete H-JEPA loss. The task is the current bit; no method
+could infer the independent future bit from the current input. See
+`every_global_optimum_task_risk_at_least_one` and
+`objective_and_task_rank_oppositely` in [`Objective.lean`](HJepa/Objective.lean).
+
+### Connection to JEPA research
+
+Useful features being representable does not imply that an objective selects
+them. The existing finite control counterexample retains a nonconstant
+background, predicts it perfectly, and discards a hidden mode needed for the
+correct action. This refutes a guarantee based on perfect latent prediction
+alone, not every objective with additional task-alignment constraints.
+
+The H-JEPA paper's Appendix L provides related population theory: under its
+atomless-background assumptions, a background-only encoder can simultaneously
+achieve zero prediction loss and a prescribed marginal latent law. Its
+predictability bound does not choose task-relevant features among zero-loss
+solutions. Those are published results, not newly proved measure-theoretic
+claims in this repository.
+[H-JEPA Appendix L](https://arxiv.org/html/2610.06805v1).
+
+More broadly, depth-separation results establish representational efficiency
+for specified architecture classes. Cohen, Sharir, and Shashua prove such a
+separation for arithmetic-circuit networks using hierarchical tensor
+factorizations. This supports studying composition, but does not establish
+that hierarchical JEPA training beats flat JEPA training.
+[Cohen et al. 2016](https://proceedings.mlr.press/v49/cohen16.html).
+
+## Remaining theory before an architecture claim
+
+1. **Specify the model and comparator.** Define the audio data process, target,
+   horizons, encoders, loss, optimizer, and a baseline with the same context.
+   Include feature construction in any resource comparison.
+2. **Prove objective alignment or produce a counterexample.** Show that the
+   specified loss excludes task-irrelevant solutions, or that its optimizer
+   selects a useful solution despite them. Lower latent error alone is not
+   sufficient.
+3. **Derive the learning budgets.** Establish an appropriate concentration
+   result, approximation bound, and optimization guarantee. Temporal audio
+   dependence and learned feature selection must be represented explicitly.
+4. **Establish a real separation.** Prove a lower bound for the specified flat
+   learner, or an exact comparison of the two training procedures. A better
+   hierarchical upper bound alone is not a separation theorem.
+5. **Identify empirical assumptions.** Noise correlations, alignment, and
+   retention of transient information need evidence on the intended data.
+   Experiments test applicability; they cannot turn an unproved universal
+   claim into a theorem.
+
+The broader analytical note's Gaussian OLS expectation and spectral arguments
+also remain outside the Lean formalization. Proving their risk formulas would
+strengthen a finite-sample mechanism, but would still require connecting their
+assumptions to a particular learned H-WavJEPA model.
+
+## Verification
+
+Run from the repository root:
+
+```sh
+lake build
+lake env lean Audit.lean
+```
+
+The audit rejects unfinished proofs and transitive dependencies on additional
+axioms. It permits Lean's standard `propext`, `Classical.choice`, and
+`Quot.sound`. Passing the audit verifies the formal implications, not that
+their statistical assumptions hold for a trained audio model.
