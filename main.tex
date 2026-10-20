@@ -21,12 +21,14 @@ We formulate a mathematical comparison around arXiv:2610.06805v1. The central tr
 
 \paragraph{Formal verification status.}
 The companion Lean 4 project at
-\url{https://github.com/quangng2000/hjepa-lean} machine-checks the finite,
-scalar version of the abstraction identities, algebraic consequences of the
+\url{https://github.com/quangng2000/hjepa-lean} machine-checks finite scalar
+and finite-dimensional vector versions of the abstraction identities,
+three-level telescoping and retained-low-level readout results,
+algebraic consequences of the
 stated OLS risk formulas, the conditional composed-planner bound, rollout
 and temporal-grouping identities, and finite sign/control counterexamples.
 It does not yet formalize the Gaussian OLS expectation formulas, the
-continuous/vector-valued probability arguments, or the linear spectral result.
+general continuous-population probability arguments, or the linear spectral result.
 The repository README provides the exact theorem-by-theorem coverage.
 Analytical proofs below must not be conflated with complete Lean formalizations.
 
@@ -53,7 +55,7 @@ where the infimum is over all measurable predictors with finite risk.
 \[
  B:=R^*(U)-R^*(Z)=\E\norm{\mu_Z-\mu_U}^2\geq0 .
 \]
-Equality holds exactly when $\mu_Z$ is measurable with respect to $U$.
+Equality holds exactly when $\mu_Z$ has a version measurable with respect to $U$.
 \end{theorem}
 \begin{proof}
 Conditional expectation minimizes squared loss. Expand
@@ -91,6 +93,44 @@ For $Z\sim\mathcal N(0,1)$, $U=Z^2$, and $Y=Z$, symmetry gives $\mu_U=0$. Thus $
 
 \paragraph{Scope.}
 The theorem compares nested frozen features, including levels within one trained hierarchy. A separately trained flat encoder need not equal H-JEPA's first-level encoder. If an upper level sees more history, define $Z$ to contain that same history. For action-conditioned prediction at a common physical horizon, apply the result to inputs $(Z,A)$ and $(g(Z),A)$, or $(g(Z),h(A))$ when action pooling is also part of the abstraction. A controller using both $Z$ and $U$ retains $Z$; this is not a theorem that the complete architecture loses all upper-level discarded information.
+
+\section{Three-level H-WavJEPA specialization}
+For fixed nested representations $Z_2=g(Z_1)$ and $Z_3=h(Z_2)$, define
+$B_{12}=\E\norm{\mu_1-\mu_2}^2$ and
+$B_{23}=\E\norm{\mu_2-\mu_3}^2$, with $\mu_\ell=\E[Y\mid Z_\ell]$.
+The repository now machine-checks, on finite probability spaces with the
+required finite feature-label types and scalar or finite-dimensional vector
+targets, the identities
+\[
+ R^*(Z_3)-R^*(Z_1)=B_{12}+B_{23},\qquad
+ R(f_3)-R(f_1)=B_{12}+B_{23}+A_3-A_1.
+\]
+Strict improvement occurs exactly when $A_1-A_3>B_{12}+B_{23}$.
+The cumulative information gap vanishes exactly when both adjacent gaps
+vanish. All vector losses are sums of coordinatewise squared errors for the
+same target, not losses in different learned latent spaces.
+
+Keeping the uncompressed bundle $C=(Z_1,Z_2,Z_3)$ gives
+$R^*(C)=R^*(Z_1)$: a predictor of $Z_1$ lifts using the first projection,
+while every predictor of $C$ composes with the deterministic bundle map to
+become a predictor of $Z_1$. Lean checks these risk-preserving transformations.
+This is an unrestricted-predictor statement, not a guarantee for a particular
+trained readout or a subsequent lossy bottleneck.
+
+A checked finite witness uses two independent fair signs with
+$Y=S_1+2S_2$. Retaining both signs, retaining only $S_1$, and retaining
+neither gives optimal risks $0,4,5$, respectively. A chosen constant-zero
+high-level predictor nevertheless has lower risk ($5$) than a poor
+constant-three low-level predictor ($14$). This establishes possible gain
+and strict loss in a toy model, not an audio-training result.
+
+The low/medium/high interpretation motivates an audio research question;
+temporal specialization is not proved. All levels must have the same
+accessible context: when an upper level pools a block, the compared lower
+feature must retain the entire block. Independently trained WavJEPA and
+H-WavJEPA encoders, generalization, and training convergence are outside these
+theorems. The action-conditioned planning results below do not by themselves
+apply to passive audio.
 
 \section{A finite-sample example with an exact gain/loss threshold}
 \begin{theorem}[Gaussian-design regression]

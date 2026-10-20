@@ -1,11 +1,15 @@
 import HJepa.Abstraction
+import HJepa.ThreeLevel
+import HJepa.Vector
+import HJepa.Readout
+import HJepa.AudioExamples
 import HJepa.OLS
 import HJepa.Planning
 import HJepa.Rollout
 import HJepa.Counterexamples
 
 /-!
-# H-JEPA: conditional gains and losses
+# H-JEPA and H-WavJEPA: conditional gains and losses
 
 The public entry point for the formal development. These are explicitly scoped
 mathematical comparisons, not a verification of neural training or of the full

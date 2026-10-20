@@ -1,4 +1,4 @@
-# H-JEPA gains and losses in Lean 4
+# H-JEPA and H-WavJEPA gains and losses in Lean 4
 
 [![Lean proof check](https://github.com/quangng2000/hjepa-lean/actions/workflows/lean.yml/badge.svg)](https://github.com/quangng2000/hjepa-lean/actions/workflows/lean.yml)
 
@@ -10,6 +10,8 @@ The main result makes the tradeoff precise: **abstraction helps prediction only
 when its reduction in excess prediction error exceeds the information it loses.**
 The project also proves a composed-planner regret bound, a temporal-grouping
 identity, algebraic regression thresholds, and explicit counterexamples.
+The H-WavJEPA extension adds **three-level telescoping, finite-dimensional
+vector targets, and retained-low-level readout guarantees**.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -50,6 +52,88 @@ Read [`Abstraction.lean`](HJepa/Abstraction.lean), especially
 sufficiency for this target and squared loss—not preservation of all task
 information or of the full conditional distribution.
 
+## H-WavJEPA: three levels, explicit gains and losses
+
+For the proposed low/medium/high audio hierarchy, freeze the encoders and use
+the same target, squared loss, probability law, and accessible input context:
+
+$$
+Z_1=Z,\qquad Z_2=g(Z_1),\qquad Z_3=h(Z_2).
+$$
+
+Let $\mu_\ell=\mathbb E[Y\mid Z_\ell]$, define
+$B_{12}=\mathbb E\|\mu_1-\mu_2\|^2$ and
+$B_{23}=\mathbb E\|\mu_2-\mu_3\|^2$, and let
+$A_\ell=R(f_\ell)-R^*(Z_\ell)$ for each chosen predictor. Lean proves:
+
+$$
+R^*(Z_3)-R^*(Z_1)=B_{12}+B_{23},\qquad B_{12},B_{23}\geq0,
+$$
+
+$$
+R(f_3)-R(f_1)=B_{12}+B_{23}+A_3-A_1.
+$$
+
+Therefore, the highest-level predictor is better **if and only if**
+$A_1-A_3>B_{12}+B_{23}$. The reverse strict inequality makes it worse;
+equality gives equal risk. The cumulative information gap is zero exactly
+when both adjacent gaps are zero. A later deterministic abstraction cannot
+recover information already lost by an earlier one.
+
+These results are checked for both scalar targets and finite-dimensional
+real vectors, using the **sum of coordinatewise squared errors**. Vector
+coordinates belong to one common target; this is not a comparison of JEPA
+training losses from different learned target spaces.
+
+### Keeping all three levels
+
+For the uncompressed bundle $C=(Z_1,Z_2,Z_3)$, Lean also proves
+
+$$
+R^*(C)=R^*(Z_1).
+$$
+
+Every lower-level predictor lifts to a combined predictor with exactly the
+same risk, and every combined predictor pulls back to a function of $Z_1$.
+Thus both have the same achievable risks when **all functions** are allowed.
+The bundle adds no population information, but may change how easily a
+restricted learner uses the information. This equality is about access to
+the original bundle, not an arbitrary learned bottleneck applied afterwards.
+It does not promise that a particular linear head, optimizer, or jointly
+trained encoder preserves the baseline's performance.
+
+### What is actually formalized
+
+| Module | Main role |
+| --- | --- |
+| [`ThreeLevel.lean`](HJepa/ThreeLevel.lean) | Scalar cumulative-gap identity, monotone Bayes risks, strict improvement/worsening conditions, and zero/positive-gap criteria. |
+| [`Vector.lean`](HJepa/Vector.lean) | Coordinatewise finite-vector extension of prediction risk, Bayes optimality, and the two-/three-level tradeoffs. |
+| [`Readout.lean`](HJepa/Readout.lean) | Recoverable deterministic augmentation, three-level feature bundles, and risk-preserving predictor transformations. |
+| [`AudioExamples.lean`](HJepa/AudioExamples.lean) | Exact finite witnesses: both adjacent steps lose signal, yet an upper predictor can beat a poorly chosen lower predictor. |
+
+The finite witnesses use two independent fair signs and target
+$Y=S_1+2S_2$. The low level keeps both signs, the middle keeps only $S_1$,
+and the high level is constant. The checked optimal risks are **0, 4, 5**,
+with adjacent gaps **4 and 1**. A high-level constant-zero predictor has risk
+**5**, while a deliberately poor low-level constant-three predictor has risk
+**14**. Its excess-risk reduction is 14, offset by information loss 5, for a
+risk improvement of 9. These are toy mathematical witnesses, **not audio
+experiments or outcomes of JEPA training**.
+Additional checked examples confirm that the combined bundle has risk zero,
+duplicating target coordinates doubles the summed loss, empty-coordinate loss
+is zero, and disagreement confined to a zero-probability outcome incurs no loss.
+
+**Scope:** finite probability spaces; fixed deterministic nested encoders;
+finite low/middle feature-label types (and finite bundled labels for the
+readout result); one common scalar or finite-dimensional vector target.
+Zero-probability outcomes are allowed. The names low/medium/high do not prove
+that the levels learn particular time scales or semantics. If an upper
+feature pools a time window, $Z_1$ must include that **entire same-context
+window**, not a single low-level token. Independently trained flat and
+hierarchical encoders are not ordered by these theorems. Continuous-population
+generalization, training dynamics, and passive-audio planning guarantees
+remain outside the formalization.
+
 ## Formalization coverage
 
 The accompanying [research note](main.tex) contains broader analytical arguments.
@@ -59,6 +143,10 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | --- | --- | --- |
 | Conditional mean and Bayes optimality | [`Abstraction.lean`](HJepa/Abstraction.lean): `fiber_residual_zero`, `residual_orthogonality`, `risk_pythagorean`, `bayes_optimal` | Finite probability law and feature-label type, scalar real target, fixed encoder; zero weights allowed. |
 | Information loss and learning-error tradeoff | `nested_risk_identity`, `abstraction_no_loss_iff`, `abstraction_improves_iff` | Nested deterministic features; fixed predictors. No theorem about a training algorithm or its sample complexity. |
+| Three-level H-WavJEPA tradeoff | [`ThreeLevel.lean`](HJepa/ThreeLevel.lean): `informationGap_telescope`, `three_level_gain_loss_identity`, `three_level_improves_iff`, `cumulative_gap_eq_zero_iff` | Finite law and low/middle label types; scalar target; high labels need not be finite. |
+| Finite-dimensional vector targets | [`Vector.lean`](HJepa/Vector.lean) | Sum of coordinatewise real squared losses on a finite law; not a general measure-theoretic or Hilbert-space formalization. |
+| Retained-low-level combined readout | [`Readout.lean`](HJepa/Readout.lean): `three_level_bundle_bayes_risk_eq`, `three_level_achievable_risk_iff` | Deterministic bundle with the original low-level feature retained; finite labels; unrestricted predictors, not guaranteed training behavior. |
+| Three-level signal-loss and imperfect-predictor witnesses | [`AudioExamples.lean`](HJepa/AudioExamples.lean): `three_level_bayes_risks`, `adjacent_information_gaps`, `exact_gain_loss_budget` | Explicit uniform four-outcome law; no neural or audio experiment. |
 | OLS gain/loss threshold | [`OLS.lean`](HJepa/OLS.lean): `risk_difference`, `reduced_better_iff`, `risks_equal_iff`, `reduced_worse_iff` | Algebra of explicit rational risk expressions. Gaussian-design / inverse-Wishart expectation formulas are **not** formalized. |
 | Composed-planner regret | [`Planning.lean`](HJepa/Planning.lean): `composite_planner_regret`, `composite_planner_regret_of_infimum`, `flat_planner_regret`, `exact_calibration_optimality` | True cost bounded below; a candidate exists; uniform task-cost calibration and global approximate surrogate optimization. Infima need not be attained. |
 | Rollout error and cost calibration | [`Rollout.lean`](HJepa/Rollout.lean): `dynamics_error_recurrence`, `rollout_error_bound`, `task_cost_calibration` | Explicit local-error, Lipschitz, and task-calibration assumptions; deterministic fixed-horizon statements. |
@@ -166,7 +254,7 @@ lake exe cache get \
   Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
 ```
 
-`lake build` checks the five modules through [`HJepa.lean`](HJepa.lean).
+`lake build` checks all nine modules through [`HJepa.lean`](HJepa.lean).
 `lake env lean Audit.lean` additionally rejects transitive axiom dependencies
 outside `propext`, `Classical.choice`, and `Quot.sound`. It scans public and
 private declarations in the `HJepa` namespace, including definitions, and
@@ -181,12 +269,13 @@ empirical assumptions. CI runs both build and audit on GitHub.
 ## Reading and extending the project
 
 1. Start with `Abstraction.lean` for the central theorem and explicit finite laws.
-2. Read `Counterexamples.lean` to see why the assumptions matter.
-3. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
-4. Read `OLS.lean` together with its probability-formalization caveat.
-5. Read `main.tex` for the broader argument and research directions.
+2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.
+3. Read `AudioExamples.lean` and `Counterexamples.lean` to see why the assumptions matter.
+4. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
+5. Read `OLS.lean` together with its probability-formalization caveat.
+6. Read `main.tex` for the broader argument and research directions.
 
-Good next milestones are a measure-theoretic/vector-valued extension, the
+Good next milestones are a general measure-theoretic extension, the
 Gaussian OLS expectation proof, the linear spectral theorem, and assumptions
 linking representation learning to task calibration. These are open work here,
 not hidden premises already verified by this repository.
