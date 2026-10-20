@@ -9,6 +9,10 @@ import HJepa.LearningExamples
 import HJepa.Optimization
 import HJepa.SampleLearning
 import HJepa.Objective
+import HJepa.TaskObjective
+import HJepa.ProtectedChannel
+import HJepa.Anchor
+import HJepa.UniversalPreservation
 import HJepa.Pooling
 import HJepa.OLS
 import HJepa.Planning

@@ -12,6 +12,9 @@ The project also proves a composed-planner regret bound, a temporal-grouping
 identity, algebraic regression thresholds, and explicit counterexamples.
 The H-WavJEPA extension adds **three-level telescoping, finite-dimensional
 vector targets, and retained-low-level readout guarantees**.
+The objective-design extension adds a **task-protected channel**, a concrete
+repair of the predictive-objective counterexample, and frozen-reference
+reconstruction guarantees for tasks not specified during training.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -52,6 +55,18 @@ and the remaining obligations for an H-WavJEPA training guarantee.
   uncorrelated noise, but bias and shared errors can remove the gain. The
   exact conditions are formalized; the same averaging is available to a flat
   predictor with access to the whole window.
+- **A task-preserving objective:** separate predictive and protected channels.
+  In the same finite counterexample where the original objective loses the
+  task, an explicit normalized two-channel model achieves both losses zero.
+  **Every global optimum** of the new positive-weight objective recovers the
+  task; an approximate optimum has task risk at most $`\eta/\lambda`$.
+  Carrying the protected channel through all three levels preserves this bound.
+  This adds supervision and scalar capacity; it is not a matched-budget win.
+- **Label-free reference protection:** exact reconstruction of a **fixed**
+  finite-dimensional reference preserves every readout's risk relative to
+  that reference. Approximate reconstruction protects sufficiently insensitive
+  readouts, with an explicit error bound. It does not certify the reference's
+  quality or protect information it already discarded.
 
 ### Refuted
 
@@ -72,11 +87,16 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 - **A smaller risk upper bound establishes better actual performance:**
   explicit counterexample. A superiority proof needs a valid opposing lower
   bound or another justified comparison of actual risks.
+- **Genuinely lossy compression can preserve every possible future task:**
+  on finite support, preserving every deterministic scalar task is equivalent
+  to recoverability of the original features. Merging two positive-mass
+  feature values produces a binary task with strictly positive unavoidable risk.
 
 ### Still open
 
-- Whether a specified **H-WavJEPA training objective and optimizer learn useful
-  encoders**, rather than merely admitting them.
+- Whether an **H-WavJEPA optimizer reaches the protected objective's useful
+  population solutions** from finite audio data. Objective alignment is now
+  proved for the specified models below, not neural optimization or sampling.
 - Whether the resulting trained model beats an independently trained WavJEPA
   baseline with matched context, data, parameters, and compute.
 - Generalization guarantees for learned representations on temporally
@@ -91,8 +111,81 @@ optimizer discovers the useful encoders. See
 [`Optimization.lean`](HJepa/Optimization.lean),
 [`SampleLearning.lean`](HJepa/SampleLearning.lean),
 [`Objective.lean`](HJepa/Objective.lean),
+[`TaskObjective.lean`](HJepa/TaskObjective.lean),
+[`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean),
+[`Anchor.lean`](HJepa/Anchor.lean),
+[`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean),
 [`Learning.lean`](HJepa/Learning.lean), and
 [`Pooling.lean`](HJepa/Pooling.lean).
+
+## Objective design: predictive features with a protected channel
+
+Use a predictive coordinate $`S_\ell`$ and a protected coordinate $`R`$:
+
+```math
+Z_1=(S_1,R),\qquad Z_2=(g(S_1),R),\qquad Z_3=(h(g(S_1)),R).
+```
+
+The protected coordinate remains available to the readout at every level.
+It is **not** required to predict its own future: an unpredictable current
+signal can still matter to a current task. The proposed objective is
+
+```math
+\mathcal{J}=\mathcal{L}_{\mathrm{predict}}+\lambda\mathcal{A},
+\qquad \lambda\gt0.
+```
+
+The generic predictive cost can include a nonnegative weighted sum of level
+losses. The concrete checked repair uses one predictive branch and proves
+task preservation through three levels via carry maps; it does not prove that the
+levels learn different temporal scales.
+
+**Known task:** choose $`\mathcal{A}=\mathbb{E}[(Y-D(R))^2]`$. This is a
+task-supervised addition, not pure self-supervised JEPA. If a feasible model
+simultaneously attains the predictive-cost floor and the original context's
+Bayes task risk, every $`\eta`$-approximate population optimum satisfies
+
+```math
+0\leq B_{\mathrm{task}}
+\leq R(D\circ E)-R^{*}(X)
+\leq\frac{\eta}{\lambda}.
+```
+
+Thus exact optimality loses no conditional-mean information for this task
+under squared loss, even when labels contain irreducible noise. Joint
+feasibility is a real condition. Without it, the proved bound includes the
+comparator's task slack and predictive slack; a finite penalty is not an
+unconditional exact-preservation guarantee. The finite two-bit example
+**constructs** a jointly feasible solution, rather than assuming one.
+
+**Unknown future tasks:** instead choose a fixed reference $`\Phi(X)`$ and
+$`\mathcal{A}=\mathbb{E}\lVert\Phi(X)-D(R)\rVert^2`$. This reconstruction
+loss uses no downstream task labels. At zero reconstruction error, every
+reference readout $`q`$ retains exactly the same population risk:
+
+```math
+R(q\circ D\circ E_R)=R(q\circ\Phi).
+```
+
+For an $`L`$-Lipschitz reference readout and a population certificate
+$`\mathcal{J}\leq\eta`$ with nonnegative predictive cost, Lean proves
+
+```math
+R(q\circ D\circ E_R)
+\leq 2R(q\circ\Phi)+2L^2\frac{\eta}{\lambda}.
+```
+
+This preserves the reference's capabilities, not unknown missing semantics.
+The reference must stay fixed or be separately protected against collapse;
+stop-gradient on a jointly evolving or EMA target is not the fixed-reference
+assumption proved here.
+Copying it establishes reconstruction feasibility, but not automatically
+joint predictive optimality, useful compression, or efficient learning.
+Preserving **all** future tasks rules out merging distinct reference values
+on positive-probability support; it does not rule out reversible encoding.
+
+See the [objective design and proof boundaries](THEORY.md#a-protected-objective-with-a-checked-positive-guarantee).
+No new experiments were run for these results.
 
 ## Start here: the exact gain–loss identity
 
@@ -232,6 +325,10 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | Explicit readout optimization | [`Optimization.lean`](HJepa/Optimization.lean): `exact_loss_increment`, `iterate_population_risk`, `half_step_beats_all_affine_readouts` | Actual residual-based gradient steps on the balanced fixed-feature loss; arbitrary initialization. This closes the fitting assumption for that problem, not for JEPA encoder learning. |
 | Exact IID learning risk | [`SampleLearning.lean`](HJepa/SampleLearning.lean): `iid_labeled_expected_population_risk`, `three_samples_beat_trained_affine_readouts` | An explicit fitter reads arbitrary real labels; its guarantee is proved on the fixed noiseless parity task by averaging IID raw samples. Compares against arbitrary sample-dependent affine fitting rules. Expected risk, not samplewise superiority or an optimal sample-complexity claim. |
 | Predictive objective can force task-information loss | [`Objective.lean`](HJepa/Objective.lean): `every_global_optimum_task_risk_at_least_one`, `objective_and_task_rank_oppositely` | Static background and independent current/future task bits; shared scalar encoder, squared next-latent loss, zero mean/unit second moment. All global optima fail the current-bit downstream task. Not SIGReg or full H-JEPA. |
+| Task-aware objective alignment | [`TaskObjective.lean`](HJepa/TaskObjective.lean): `jointly_feasible_approximate_minimum_bound`, `exact_minimum_preserves_task_information`, `information_bound_of_empirical_minimum` | Known target, deterministic abstraction, finite population; ambient representation types may be arbitrary. Requires a feasible comparator and approximate optimization; empirical variant assumes uniform deviation for the whole weighted objective. |
+| Concrete protected-channel repair | [`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean): `every_global_minimum_preserves_task`, `approximate_protection_beats_old_global_optimum`, `three_levels_preserve_task_at_global_minimum` | Explicit feasible normalized two-channel model. Positive task weight, extra scalar channel and task supervision; no convergence or matched-resource claim. Protected channel is carried unchanged, not forecast. |
+| Frozen-reference reconstruction protection | [`Anchor.lean`](HJepa/Anchor.lean): `exact_reconstruction_preserves_readout`, `objective_bounds_task_risk` | Finite-dimensional fixed reference; exact equality for all reference readouts, approximate bound requires squared Lipschitz sensitivity. Nonnegative predictive-cost interface does not prove joint feasibility. |
+| Unknown-task preservation boundary | [`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean) | On finite population support, all deterministic scalar tasks are preserved iff original features are recoverable. Explicit positive risk lower bound for a binary task separating collided features. No universal lossy-compression guarantee. |
 | Approximate ERM and three-level superiority | [`Learning.lean`](HJepa/Learning.lean): `population_oracle_inequality`, `three_level_strict_superiority` | Assumed uniform deviation and approximate empirical minimization on a common task; witnessed hierarchical approximation and certified flat-class lower bound. No concentration or JEPA convergence proof. |
 | Pooling noise, bias, and correlation | [`Pooling.lean`](HJepa/Pooling.lean): `pooled_risk_pairwise`, `pooled_risk_equicorrelated`, `biased_correlated_pooling_improves_iff` | Finite law, aligned scalar observations, specified second moments; centered errors for the constant-bias result. Not exclusive to hierarchy. |
 | OLS gain/loss threshold | [`OLS.lean`](HJepa/OLS.lean): `risk_difference`, `reduced_better_iff`, `risks_equal_iff`, `reduced_worse_iff` | Algebra of explicit rational risk expressions. Gaussian-design / inverse-Wishart expectation formulas are **not** formalized. |
@@ -359,9 +456,10 @@ empirical assumptions. CI runs both build and audit on GitHub.
 2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.
 3. Read `Expressivity.lean`, `Learning.lean`, `LearningExamples.lean`, `Optimization.lean`, `SampleLearning.lean`, and `Pooling.lean` for positive mechanisms and their limits.
 4. Read `Objective.lean`, `AudioExamples.lean`, and `Counterexamples.lean` to see why the assumptions matter.
-5. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
-6. Read `OLS.lean` together with its probability-formalization caveat.
-7. Read `THEORY.md` for the proof obligations and `main.tex` for the broader analytical argument.
+5. Read `TaskObjective.lean`, `ProtectedChannel.lean`, `Anchor.lean`, and `UniversalPreservation.lean` for the protected objective and the limits of unknown-task preservation.
+6. Read `Planning.lean` and `Rollout.lean` for the composed planning guarantee.
+7. Read `OLS.lean` together with its probability-formalization caveat.
+8. Read `THEORY.md` for the proof obligations and `main.tex` for the broader analytical argument.
 
 Good next milestones are a general measure-theoretic extension, the
 Gaussian OLS expectation proof, the linear spectral theorem, and assumptions

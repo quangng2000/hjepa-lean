@@ -4,8 +4,10 @@ Hierarchy alone does not guarantee better prediction. The checked results
 establish a narrower positive claim: **nonlinear composition can make existing
 task information accessible to a restricted readout**. They also establish
 conditions for learning a good readout and for reducing observation noise.
-Whether a particular H-WavJEPA objective and optimizer learn those useful
-representations remains an open obligation.
+The protected-objective extension now proves that a specified task-aware loss
+selects useful representations at every global optimum in a concrete finite
+model, plus conditional guarantees for general finite populations. Whether an
+audio optimizer reaches those solutions and generalizes remains open.
 
 ## Claim ledger
 
@@ -23,6 +25,10 @@ implementation of a neural architecture.
 | A longer averaging window always improves prediction. | Refuted in general | Bias can exceed the noise saved; perfectly shared error gives no gain. Exact thresholds are proved. [`Pooling.lean`](HJepa/Pooling.lean). |
 | Perfect latent prediction guarantees useful control. | Refuted by construction | A nonconstant background-only representation has exact dynamics, but every policy using only it succeeds with probability 1/2 rather than 1. [`Counterexamples.lean`](HJepa/Counterexamples.lean). |
 | Global predictive optimality plus variance normalization guarantees useful features. | Refuted by construction | Every global optimum in a finite shared-encoder next-latent prediction model loses the current task bit, despite an admissible encoder retaining it. [`Objective.lean`](HJepa/Objective.lean). |
+| A protected-channel objective can exclude those task-discarding optima. | Proved by construction | A normalized two-channel zero-loss witness exists; every positive-weight global optimum recovers the task. Approximate task risk is at most optimization tolerance divided by protection weight. Extra capacity and supervision are explicit. [`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean). |
+| Task-aware optimization controls information lost by the learned encoder. | Proved under explicit conditions | A predictive floor, feasible comparator, and approximate optimization give a conditional-mean information-gap bound. A uniform empirical/population objective bound gives the empirical variant. [`TaskObjective.lean`](HJepa/TaskObjective.lean). |
+| A label-free reconstruction term can protect capabilities of a fixed reference. | Proved under explicit conditions | Exact population recovery preserves every reference readout's risk; approximate recovery needs a sensitivity bound. Does not prove teacher quality or joint predictive feasibility. [`Anchor.lean`](HJepa/Anchor.lean). |
+| Lossy compression can guarantee preservation of every future task. | Refuted on finite support | All-task preservation is equivalent to recovery of the original features on support. Collisions give a binary-task risk lower bound. [`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean). |
 | A smaller error upper bound proves better actual performance. | Refuted by construction | Actual risks 2 and 1 can satisfy respective bounds 3 and 4. [`Learning.lean`](HJepa/Learning.lean). |
 | The specified H-WavJEPA training procedure beats a matched WavJEPA baseline. | Open | Requires a specified objective, data model, optimizer, baseline class, and resource budget, followed by a theorem about those objects. |
 
@@ -319,6 +325,217 @@ could infer the independent future bit from the current input. See
 `every_global_optimum_task_risk_at_least_one` and
 `objective_and_task_rank_oppositely` in [`Objective.lean`](HJepa/Objective.lean).
 
+## A protected objective with a checked positive guarantee
+
+### Design: separate predictive and preservation obligations
+
+An unpredictable current signal need not be useless. Instead of forcing every
+retained feature to predict itself in the future, separate the representation:
+
+```math
+Z_1=(S_1,R),\qquad Z_2=(g(S_1),R),\qquad
+Z_3=(h(g(S_1)),R).
+```
+
+The predictive branch may become coarser; the protected coordinate remains
+accessible unchanged at all three levels. This is an architectural constraint,
+not a claim that an arbitrary learned bottleneck discovers preservation. The
+choice of low/medium/high time scales remains an additional modeling decision.
+
+Use the objective
+
+```math
+\mathcal{J}(c)=P(c)+\lambda T(c),\qquad \lambda\gt0,
+```
+
+where a candidate includes its encoders and heads. For a known task,
+$`T(c)=\mathbb{E}[(Y-D_c(R_c))^2]`$. This objective explicitly uses task labels:
+it is a supervised or task-augmented extension, not a proof that unlabeled
+JEPA alone discovers semantic relevance. A sum of nonnegative predictive
+losses at several levels can serve as $`P`$ in the generic theorem. The
+concrete checked example below instantiates one predictive loss and three
+levels with task-preserving carry maps, not a full multiscale audio-training objective.
+
+### General quantitative theorem, including noisy targets
+
+Fix the finite population, task, lower input context $`X`$, and admissible
+candidate family. The learned representation is a deterministic function of
+that same context. Let $`r_*=R^{*}(X)`$ and suppose:
+
+- Every admissible candidate has $`P(c)\geq p_*`$.
+- A feasible comparator has $`P(c_0)\leq p_*+C`$ and
+  $`T(c_0)\leq r_*+\delta`$.
+- The selected candidate is $`\eta`$-approximately globally optimal for
+  $`\mathcal{J}`$ over that family.
+
+Then
+
+```math
+\begin{aligned}
+\lambda\big(T(\hat c)-r_*\big)&\leq C+\lambda\delta+\eta,\\
+0\leq B_{\mathrm{task}}(\hat c)
+&\leq T(\hat c)-r_*
+\leq\delta+\frac{C+\eta}{\lambda}.
+\end{aligned}
+```
+
+The first step compares the weighted objective to the feasible comparator;
+the second uses Bayes optimality of the selected representation's unrestricted
+task readout. Thus we do not assume the selected encoder already preserves
+information. The comparator's costs remain visible when prediction and
+preservation compete.
+
+If predictive-floor performance and Bayes task performance are jointly
+attainable, $`C=\delta=0`$, giving $`B_{\mathrm{task}}\leq\eta/\lambda`$.
+At exact optimality the task's conditional mean is preserved on support.
+The Bayes risk itself can be positive: irreducible label noise does not require
+zero task loss. This is squared-loss, task-specific sufficiency—not equality
+of all conditional distributions or preservation of all semantic attributes.
+
+The proof allows arbitrary ambient representation types, including real
+vectors, by restricting the Bayes calculation to the finite realized image.
+The population still must be finite; this is not a general measure-theoretic
+result. See `risk_pythagorean_finite_support`,
+`information_bound_of_approximate_minimum`, and
+`exact_minimum_preserves_task_information` in
+[`TaskObjective.lean`](HJepa/TaskObjective.lean).
+
+If the fitted objective is empirical, a **uniform bound for the entire
+weighted objective** over the admissible class gives instead
+
+```math
+B_{\mathrm{task}}(\hat c)
+\leq\delta+\frac{C+2\varepsilon+\eta}{\lambda}.
+```
+
+Here the uniform-deviation and approximate-fitting hypotheses are explicit,
+not derived concentration or optimizer theorems. The deviation budget can
+grow with $`\lambda`$; increasing the protection weight is not a free way to
+remove statistical error. Learned encoder selection must be covered too.
+
+### Concrete repair of the previous failure case
+
+Keep the same current input $`(B,U)`$, future input $`(B,V)`$, finite law,
+and current-bit downstream target. The new representation has two scalar
+channels, each constrained to mean zero and second moment one:
+
+```math
+\mathcal{J}(S,R,P,D)
+=\mathbb{E}[(S(B,V)-P(S(B,U)))^2]
++\lambda\mathbb{E}[(\operatorname{sign}(U)-D(R(B,U)))^2].
+```
+
+Choose $`S(B,U)=\operatorname{sign}(B)`$ and
+$`R(B,U)=\operatorname{sign}(U)`$, with identity heads. Lean checks
+normalization and both losses equal to zero. Nonnegativity then proves the
+global minimum is zero, and **every** global optimum has zero task error.
+For an approximate global optimum:
+
+```math
+\mathcal{L}_{\mathrm{predict}}\leq\eta,\qquad
+R_{\mathrm{task}}\leq\frac{\eta}{\lambda}.
+```
+
+When $`\eta\lt\lambda`$, its task error is strictly below the lower bound 1
+for **every** optimum of the original scalar predictive objective. The task
+readout achieves the same risk at all three carry-map levels. Lean also proves
+that the protected channel cannot simultaneously have zero own-future
+prediction loss while recovering the independent current bit. Excluding it
+from that predictive target is therefore substantive.
+
+At protection weight zero, a task-discarding optimum still exists. No theorem
+claims a neural optimizer reaches global optimality or that this is a
+matched-width, matched-compute improvement. The protected model adds a scalar
+channel and task supervision. Nor is scalar dimension alone an information
+capacity bound with unrestricted real precision and arbitrary encoders.
+See `every_global_minimum_preserves_task`,
+`approximate_protection_beats_old_global_optimum`, and
+`three_levels_preserve_task_at_global_minimum` in
+[`ProtectedChannel.lean`](HJepa/ProtectedChannel.lean).
+
+### Label-free option: reconstruct a genuinely fixed reference
+
+When downstream tasks are not known, replace the task term by
+
+```math
+A=\mathbb{E}\lVert\Phi(X)-D(E_R(X))\rVert^2,
+\qquad \mathcal{J}=P+\lambda A.
+```
+
+The finite-dimensional reference $`\Phi`$ is fixed throughout optimization.
+It might be a frozen encoder or the original finite input vector. This uses
+reconstruction supervision, not downstream labels; it changes the learning
+objective from pure latent prediction. A stop-gradient operation on an EMA
+or jointly evolving target is **not** the fixed-reference assumption here.
+
+If $`A=0`$, any reference readout $`q`$ can be reproduced through the decoder:
+
+```math
+R(q\circ D\circ E_R)=R(q\circ\Phi).
+```
+
+Here $`E_R`$ denotes the protected encoder. Equality holds for arbitrary
+reference readouts and arbitrary scalar task targets, including noisy ones, on positive
+population support. A constant reference contains no input-varying information;
+preserving it is not a guarantee of semantic quality. If reference and decoder are allowed to
+co-collapse to a constant, the reconstruction loss is zero; that failure is
+also checked.
+
+For approximate recovery, assume
+$`|q(a)-q(b)|^2\leq L^2\lVert a-b\rVert^2`$. Lean proves
+
+```math
+\begin{aligned}
+\mathbb{E}[(q(\Phi(X))-q(D(E_R(X))))^2]&\leq L^2 A,\\
+R(q\circ D\circ E_R)&\leq2R(q\circ\Phi)+2L^2 A.
+\end{aligned}
+```
+
+A population certificate $`\mathcal{J}\leq\eta`$, with $`P\geq0`$ and
+$`\lambda\gt0`$, gives $`A\leq\eta/\lambda`$. This certificate is an
+**absolute objective budget**, not automatically suboptimality relative to
+a nonzero optimum. If exact reconstruction is known, use the stronger exact
+risk equality above rather than the factor-two bound.
+
+Copying the whole reference explicitly achieves zero reconstruction error,
+but does not alone prove simultaneous predictive optimality under shared
+architecture constraints. A global-optimum claim needs that joint feasibility
+established separately. The generic anchor interface deliberately leaves the
+nonnegative predictive cost abstract. See `exact_reconstruction_preserves_readout`,
+`zero_objective_preserves_readout`, `objective_bounds_task_risk`, and
+`copy_reference_objective_eq_predictive_cost` in
+[`Anchor.lean`](HJepa/Anchor.lean).
+
+### The unavoidable limit for unknown tasks
+
+For original features $`Z`$ and deterministic compression $`e`$, Lean proves
+on finite positive-probability support:
+
+```math
+\begin{aligned}
+&\text{every deterministic scalar task of }Z\text{ is exactly readable from }e(Z)\\
+&\quad\iff e\text{ merges no distinct realized feature values}\\
+&\quad\iff\text{some decoder recovers }Z\text{ on support}.
+\end{aligned}
+```
+
+If two distinct features at outcomes $`a,b`$ collide, choose a binary task
+assigning them labels 0 and 1. For every readout, the proof gives
+
+```math
+R_{\mathrm{task}}\geq
+\frac{p(a)p(b)}{p(a)+p(b)}\gt0.
+```
+
+Thus universal future-task protection rules out genuinely lossy merging,
+not reversible recoding or exploiting redundancy. It does not establish a
+minimum neural dimension, bit budget, or efficient decoder. For compression
+that really discards distinctions, specify a task family and tolerate an
+appropriate information budget instead of promising all future tasks.
+See `preserves_every_task_iff_recoverable` and
+`collision_binary_risk_lower_bound` in
+[`UniversalPreservation.lean`](HJepa/UniversalPreservation.lean).
+
 ### Connection to JEPA research
 
 Useful features being representable does not imply that an objective selects
@@ -347,10 +564,11 @@ that hierarchical JEPA training beats flat JEPA training.
 1. **Specify the model and comparator.** Define the audio data process, target,
    horizons, encoders, loss, optimizer, and a baseline with the same context.
    Include feature construction in any resource comparison.
-2. **Prove objective alignment or produce a counterexample.** Show that the
-   specified loss excludes task-irrelevant solutions, or that its optimizer
-   selects a useful solution despite them. Lower latent error alone is not
-   sufficient.
+2. **Instantiate the protected objective for audio.** The finite protected
+   model closes its objective-alignment obligation; the general bounds still
+   need a justified task family or frozen reference, architecture-specific
+   joint feasibility, and explicit preservation/approximation budgets. A
+   teacher's semantic quality cannot be inferred from reconstruction alone.
 3. **Derive the learning budgets.** Establish an appropriate concentration
    result, approximation bound, and optimization guarantee. Temporal audio
    dependence and learned feature selection must be represented explicitly.
