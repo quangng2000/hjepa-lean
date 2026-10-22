@@ -22,6 +22,7 @@ import HJepa.OLS
 import HJepa.Planning
 import HJepa.Rollout
 import HJepa.Counterexamples
+import HJepa.LocalRegularization
 
 /-!
 # H-JEPA and H-WavJEPA: conditional gains and losses

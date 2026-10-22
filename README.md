@@ -17,6 +17,9 @@ repair of the predictive-objective counterexample, and frozen-reference
 reconstruction guarantees for tasks not specified during training.
 The optimizer extension proves **actual linear encoder updates**, exact IID
 SGD expected-risk decay, and an explicit failure of ordinary joint training.
+The LocaLeReg extension proves **translation invariance after centering a fixed
+nonempty cluster**, following the centering operation in
+[LocaLeJEPA](https://arxiv.org/abs/2610.28458). It does not prove better audio results.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -29,6 +32,10 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Proved
 
+- **Fixed-cluster centering:** adding a common vector shifts the cluster mean
+  by the same vector and leaves centered residuals unchanged. Any fixed loss of
+  those residuals, and weighted sums over fixed clusters, inherit this invariance.
+  Assignments remain fixed; recomputed cosine k-means is outside the theorem.
 - **Constructive benefit:** on four independent fair signs, a fixed three-level
   product hierarchy makes the parity target linearly readable. Every affine
   low- or middle-level predictor has squared risk at least **1**; a high-level

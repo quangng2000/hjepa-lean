@@ -777,6 +777,31 @@ also remain outside the Lean formalization. Proving their risk formulas would
 strengthen a finite-sample mechanism, but would still require connecting their
 assumptions to a particular learned H-WavJEPA model.
 
+## LocaLeReg: fixed-cluster centering
+
+[LocaLeJEPA](https://arxiv.org/abs/2610.28458), Section 4, centers each embedding
+neighborhood before uniform-ball distribution matching. Its authors' source is
+pinned at [771361c](https://github.com/alessioborgi/LocaLeJEPA/blob/771361c18d37e65df3dc188761ffb26751ce4e37/src/losses.py)
+in the audio implementation. This formalization isolates only the centering
+operation; it does not formalize the paper's full geometric theory or loss code.
+
+[`HJepa/LocalRegularization.lean`](HJepa/LocalRegularization.lean) proves:
+
+| Declaration | Exact claim |
+| --- | --- |
+| `clusterMean_translate` | Translating every member of a fixed nonempty finite cluster translates its coordinatewise mean by the same vector. |
+| `centered_translate` | The resulting centered residuals are identical. |
+| `centered_loss_translate` | Any fixed functional of those residuals has the same value. |
+| `sum_centered_losses_translate` | A weighted sum of such losses remains unchanged when each fixed cluster's data is independently translated. |
+
+The assumptions are explicit: fixed assignments, nonempty finite clusters,
+fixed weights and loss functionals, and exact real arithmetic. A loss with its
+own random projections is covered only after fixing that randomness. Recomputed
+cosine k-means may change assignments under translations. The result does not
+verify floating-point PyTorch code, non-collapse, optimization, semantic
+retention, or downstream performance. It gives no ordering between LocaLeReg
+and SIGReg. Those comparisons require additional assumptions and audio evidence.
+
 ## Verification
 
 Run from the repository root:
