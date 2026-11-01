@@ -14,6 +14,10 @@ The masked-target comparison additionally proves exact conditions for ordering
 the downstream linear-probe risks of two pretraining objectives' joint optima
 within one specified finite linear model.
 It holds the mask fixed; it does not compare masking locations or train audio.
+The [temporal extension](TEMPORAL_PREDICTION.md) adds a learned future-latent
+target, actual controlled transitions and autoregressive rollouts. It proves
+when raw energy versus temporal persistence favors the common task, with a
+future-raw control to separate target choice from forecast horizon.
 
 ## Claim ledger
 
@@ -22,6 +26,8 @@ implementation of a neural architecture.
 
 | Claim | Verdict | Evidence and boundary |
 | --- | --- | --- |
+| Autoregressive latent prediction always improves on masked reconstruction. | Refuted within a specified finite process | Exact strict-regime conditions and attained examples show either can win. The future-raw control gives both winners at the same horizon; common future-task rankings transfer only when signal persistence is positive. [Temporal comparison](TEMPORAL_PREDICTION.md). Shared normalized scalar encoder, linear probe, nonnegative persistence, population optimization; not full H-JEPA. |
+| The best one-step head for a fixed encoder is always best when repeatedly applied. | Refuted by an actual rollout | A normalized mixed encoder with persistences `(1,0)` has one-step-optimal coefficient `9/25`, but coefficient `3/5` has strictly smaller two-step risk. The finite transition law and recurrent predictions are iterated explicitly. This does not claim a failure at the joint encoder/head global optimum. [`Rollout/Examples.lean`](HJepa/TemporalPrediction/Rollout/Examples.lean). |
 | Masked raw reconstruction or hidden-target prediction universally gives a better representation. | Refuted within a specified model family | Both directions have attained witnesses, even for invertible frozen target rescalings. Exact strict-regime `iff` conditions and approximate population bounds compare the same linear downstream task. Fixed mask and normalized linear encoder/head class; no optimizer or audio guarantee. [Masked-target comparison](MASKED_PREDICTION.md). |
 | Deterministic hierarchy improves optimal prediction from the same context. | Refuted in general | Bayes risk can only increase under abstraction. The finite three-level witness has optimal risks 0, 4, 5. [`ThreeLevel.lean`](HJepa/ThreeLevel.lean), [`AudioExamples.lean`](HJepa/AudioExamples.lean). |
 | Composition can strictly help a restricted readout. | Proved by construction | Four-sign parity has optimal affine risks 1, 1, 0 across three fixed levels. All unrestricted Bayes risks are 0. [`Expressivity.lean`](HJepa/Expressivity.lean). |

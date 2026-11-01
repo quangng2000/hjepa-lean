@@ -24,6 +24,10 @@ The [masked-target comparison](MASKED_PREDICTION.md) proves **when masked raw
 reconstruction or frozen hidden-layer prediction wins on a common linear task**,
 with exact global-optimum conditions, ties, and approximate-optimization bounds
 in a specified finite linear model.
+The [temporal extension](TEMPORAL_PREDICTION.md) replaces the frozen target with
+**shared-encoder autoregressive latent prediction**. It derives winning
+conditions from a finite stochastic process, compares a matched-horizon raw
+baseline, and checks actual multi-step rollouts.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -36,6 +40,13 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Proved
 
+- **Masked reconstruction versus autoregressive latent prediction:** raw target
+  energy and temporal persistence can favor different coordinates. Exact
+  conditions, both winners, ties, and approximate population guarantees compare
+  the same linear task. A future-raw baseline controls for forecast horizon;
+  actual recursive rollouts expose a fixed-encoder one-step/two-step mismatch.
+  This is a scalar finite-process model, not full H-JEPA or SIGReg verification.
+  See the [temporal comparison](TEMPORAL_PREDICTION.md).
 - **Masked reconstruction versus hidden prediction:** both learners see the same
   masked context and optimize the same normalized scalar encoder and two linear
   heads. Opposite target-energy orderings give necessary and sufficient conditions
@@ -403,6 +414,7 @@ Its full contents are **not** all formalized. This is the exact boundary:
 
 | Result | Lean coverage | Assumptions / boundary |
 | --- | --- | --- |
+| Masked reconstruction versus autoregressive learned targets | [`TemporalPrediction`](HJepa/TemporalPrediction.lean): `autoregressive_better_iff`, `reconstruction_better_iff`, `autoregressive_future_better_iff`, `approximate_autoregressive_better` | Finite controlled sign process; nonnegative persistence; shared normalized scalar encoder; linear heads and probes; population optimality or tolerance. Same-horizon future-raw control and actual recurrent rollout risks also proved. No full hierarchy, SIGReg, optimizer, or audio guarantee. [Details](TEMPORAL_PREDICTION.md). |
 | Masked raw reconstruction versus frozen hidden targets | [`MaskedPrediction`](HJepa/MaskedPrediction.lean): `hidden_better_iff`, `raw_better_iff`, `approximate_hidden_better`, `approximate_raw_better`, `neither_method_dominates` | Same fixed mask, finite two-sign population, normalized scalar linear encoder, two linear heads, frozen diagonal target map; common optimal linear-probe risk. Population optimization assumed, no masking-location or nonlinear audio-training comparison. [Details](MASKED_PREDICTION.md). |
 | Conditional mean and Bayes optimality | [`Abstraction.lean`](HJepa/Abstraction.lean): `fiber_residual_zero`, `residual_orthogonality`, `risk_pythagorean`, `bayes_optimal` | Finite probability law and feature-label type, scalar real target, fixed encoder; zero weights allowed. |
 | Information loss and learning-error tradeoff | `nested_risk_identity`, `abstraction_no_loss_iff`, `abstraction_improves_iff` | Nested deterministic features; fixed predictors. No theorem about a training algorithm or its sample complexity. |
@@ -431,7 +443,7 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | No improvement from regrouping inherited error bounds | `geometric_blocking`, `inherited_full_bound_equality` | Exact algebraic identity; includes zero horizons and multiplier one. Not a lower bound on actual learned-model error. |
 | Perfect latent prediction can fail control | [`Counterexamples.lean`](HJepa/Counterexamples.lean): `abstract_rollout_exact`, `abstract_policy_success_half`, `full_policy_success_one` | Actual finite four-state average; arbitrary deterministic background-only policy, compared with full-state access. |
 | Sign-discarding prediction loss | `squared_sign_risk_at_least_one`, `zero_predictor_attains_one`, `retained_sign_risk_zero` | Fair finite $`\pm1`$ target: optimal squared-loss risk one versus zero. |
-| Gaussian AR / spectral feature-selection argument | Analytical note only | No Lean proof of its stochastic process or matrix optimization result yet. |
+| Gaussian AR / general spectral feature-selection argument | Analytical note only | The finite scalar sign-process comparison is now checked in `TemporalPrediction`; the Gaussian process and general matrix optimization result remain unproved. |
 | Trained nonlinear H-JEPA vs independently trained flat JEPA | Not proved | No verification of neural training, generalization, SIGReg, experimental scores, or closed-loop control. |
 
 ## Planning: where gains and losses enter
@@ -548,6 +560,8 @@ empirical assumptions. CI runs both build and audit on GitHub.
 
 For the masked-input/hidden-target question, start with
 [MASKED_PREDICTION.md](MASKED_PREDICTION.md) and its eight small proof modules.
+For learned future targets and autoregressive prediction, continue with
+[TEMPORAL_PREDICTION.md](TEMPORAL_PREDICTION.md).
 
 1. Start with `Abstraction.lean` for the central theorem and explicit finite laws.
 2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.
