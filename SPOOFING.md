@@ -97,6 +97,12 @@ It does not guarantee that a trained fusion network finds that option, that
 regularization leaves it admissible, or that end-to-end updates preserve $`z_1`$.
 The result applies recursively when retaining three levels.
 
+The [three-level fusion extension](FUSION.md) proves more: deterministic higher
+levels preserve the unrestricted risk set, while a constructed nonlinear hierarchy
+strictly improves an affine detector from a 12.5% optimum on fine features to
+0% with fusion. Removing any branch leaves a positive error floor in that model.
+It also verifies conditions for approximate fitting and compares aggregation classes.
+
 ## Consequences for an audio experiment
 
 The proofs support a causal strided-convolution baseline **with a retained

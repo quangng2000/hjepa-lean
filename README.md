@@ -32,6 +32,10 @@ The [token-aggregation comparison](TOKEN_AGGREGATION.md) proves exact conditions
 and opposite winners for subsampling versus averaging before the next encoder.
 The [spoofing-cue extension](SPOOFING.md) adds causal convolution, balanced binary
 detection counterexamples, cue margins, and guarantees for retaining fine features.
+The [three-level fusion result](FUSION.md) gives a sharp positive example:
+an affine detector's optimal classification error is **12.5% on fine features**
+and **0% with all three levels**. Each branch is needed for zero error under the
+specified head classes; unrestricted fine-only prediction already attains zero.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -44,6 +48,13 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Proved
 
+- **Strict three-level fusion benefit under explicit head restrictions:** on a
+  constructed balanced cue task, affine fusion achieves zero error while every
+  fine-only affine detector has error at least 1/8, with an attaining fine head.
+  All branch ablations have positive floors; approximate fitting below the gap
+  still wins. Unrestricted deterministic fusion preserves the fine risk set.
+  Purely affine higher levels add no affine scoring expressiveness. See
+  [the classification proof and aggregation boundaries](FUSION.md).
 - **Token aggregation and detection cues:** actual finite examples show selection
   and averaging each irreversibly losing distinctions the other can retain,
   even with nonlinear readouts. Causal convolution includes both operations and
@@ -426,6 +437,7 @@ Its full contents are **not** all formalized. This is the exact boundary:
 
 | Result | Lean coverage | Assumptions / boundary |
 | --- | --- | --- |
+| Three-level fusion classification gain and boundary | [`Spoofing/Fusion`](HJepa/Spoofing/Fusion.lean): `achievable_risk_iff`, `cue_full_optimal`, `cue_fused_optimum_strict`, `cue_approximate_strict`, `three_affine_levels_collapse` | Fixed deterministic hierarchy and same full fine context. Actual finite binary error; all-affine fine floor 1/8, fused optimum 0; every branch ablation has a positive floor. Handcrafted nonlinear features, not trained audio/EER or extra information. Recoverable aggregation is optimal against deterministic reductions only with unrestricted optimal heads. [Details](FUSION.md). |
 | Latent-token selection versus averaging | [`TokenAggregation`](HJepa/TokenAggregation.lean): `mean_better_iff`, `aligned_mean_better_iff`, `neither_aggregation_dominates` | Same available fixed token pair and task; fitted scalar linear moment criterion, plus attained arbitrary-readout examples in both directions. Scalar nonzero linear next-encoder invariance; no nonlinear training guarantee or free lookahead. [Details](TOKEN_AGGREGATION.md). |
 | Causal filtering and detection-cue preservation | [`Spoofing`](HJepa/Spoofing.lean): `causal_no_future`, `causal_alternating_perfect`, `alternating_average_postencoder_chance`, `current_average_opposite_winners`, `retained_optimum_no_worse` | Constructed balanced binary cues; actual 0–1 error, arbitrary post-collapse classifiers, explicit kernels and padding. Two-channel recovery and scalar-projection collisions. Fixed fine features and fusion class containing fine-only heads; not EER, real spoof data, or JEPA convergence. [Details](SPOOFING.md). |
 | Masked reconstruction versus autoregressive learned targets | [`TemporalPrediction`](HJepa/TemporalPrediction.lean): `autoregressive_better_iff`, `reconstruction_better_iff`, `autoregressive_future_better_iff`, `approximate_autoregressive_better` | Finite controlled sign process; nonnegative persistence; shared normalized scalar encoder; linear heads and probes; population optimality or tolerance. Same-horizon future-raw control and actual recurrent rollout risks also proved. No full hierarchy, SIGReg, optimizer, or audio guarantee. [Details](TEMPORAL_PREDICTION.md). |

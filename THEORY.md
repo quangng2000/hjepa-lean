@@ -21,6 +21,9 @@ future-raw control to separate target choice from forecast horizon.
 The [aggregation](TOKEN_AGGREGATION.md) and [detection](SPOOFING.md) extensions
 separately compare fixed token reductions, causal kernels, and downstream cue
 preservation. They do not identify a universally best learned audio architecture.
+The [fusion extension](FUSION.md) proves a sharp classification gain under
+restricted affine heads while establishing equality for unrestricted heads
+of the same full fine information.
 
 ## Claim ledger
 
@@ -29,6 +32,8 @@ implementation of a neural architecture.
 
 | Claim | Verdict | Evidence and boundary |
 | --- | --- | --- |
+| Combining three deterministic levels always improves spoofing accuracy. | Refuted without a head restriction; strict improvement proved in a finite restricted model | Unrestricted attainable classification risks are identical to fine-only risks. A handcrafted nested nonlinear hierarchy gives affine fine optimum 1/8 versus fused optimum 0; each missing branch leaves positive error. Approximate fitting preserves the strict gap below 1/8. No trained neural or real-data claim. [Fusion proof](FUSION.md). |
+| Three affine levels followed by affine fusion add nonlinear scoring power. | Refuted algebraically | The composed score equals one affine score of the raw fine features, for any finite dimensions. Nonlinear encoders and input-dependent attention are outside this boundary. [`NestedAffine.lean`](HJepa/Spoofing/Fusion/Aggregation/NestedAffine.lean). |
 | Averaging or subsampling is always better before the next encoder. | Refuted by actual finite populations | Opposite attained winners against all deterministic readouts; a general positive-energy fitted-linear criterion characterizes the comparison by raw moments. Same available pair and target, fixed lower latents. [`TokenAggregation.lean`](HJepa/TokenAggregation.lean). |
 | Strided convolution automatically preserves all spoofing evidence. | Not established; universal scalar losslessness refuted | Causal kernels preserve different constructed binary cues, but each scalar linear projection has some colliding real-valued input pair. Two-channel sum/difference recovery accounts for capacity. Fine-feature retention helps an unrestricted optimum but does not prove real training preserves authenticity cues. [`Spoofing.lean`](HJepa/Spoofing.lean). |
 | Autoregressive latent prediction always improves on masked reconstruction. | Refuted within a specified finite process | Exact strict-regime conditions and attained examples show either can win. The future-raw control gives both winners at the same horizon; common future-task rankings transfer only when signal persistence is positive. [Temporal comparison](TEMPORAL_PREDICTION.md). Shared normalized scalar encoder, linear probe, nonnegative persistence, population optimization; not full H-JEPA. |
