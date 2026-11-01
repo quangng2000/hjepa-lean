@@ -20,6 +20,10 @@ SGD expected-risk decay, and an explicit failure of ordinary joint training.
 The LocaLeReg extension proves **translation invariance after centering a fixed
 nonempty cluster**, following the centering operation in
 [LocaLeJEPA](https://arxiv.org/abs/2610.28458). It does not prove better audio results.
+The [masked-target comparison](MASKED_PREDICTION.md) proves **when masked raw
+reconstruction or frozen hidden-layer prediction wins on a common linear task**,
+with exact global-optimum conditions, ties, and approximate-optimization bounds
+in a specified finite linear model.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -32,6 +36,14 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Proved
 
+- **Masked reconstruction versus hidden prediction:** both learners see the same
+  masked context and optimize the same normalized scalar encoder and two linear
+  heads. Opposite target-energy orderings give necessary and sufficient conditions
+  for either objective's global optima to beat the other's on one linear-probe
+  task. Equal energies leave task quality unidentified; explicit examples prove
+  neither method dominates. Positive-margin bounds cover approximate population
+  optima. This is a fixed-mask model, not an audio training result. See the
+  [comparison and its assumptions](MASKED_PREDICTION.md).
 - **Fixed-cluster centering:** adding a common vector shifts the cluster mean
   by the same vector and leaves centered residuals unchanged. Any fixed loss of
   those residuals, and weighted sums over fixed clusters, inherit this invariance.
@@ -120,6 +132,9 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Still open
 
+- Whether masking raw audio or intermediate features, or choosing different
+  learned latent targets, improves actual audio training. The new comparison
+  fixes the mask and target layer and assumes population optimization quality.
 - Whether a **full nonlinear H-WavJEPA optimizer learns useful encoders**
   from finite audio data. The encoder-learning proofs below cover specified
   linear models with a frozen predictive branch, not jointly trained JEPA.
@@ -388,6 +403,7 @@ Its full contents are **not** all formalized. This is the exact boundary:
 
 | Result | Lean coverage | Assumptions / boundary |
 | --- | --- | --- |
+| Masked raw reconstruction versus frozen hidden targets | [`MaskedPrediction`](HJepa/MaskedPrediction.lean): `hidden_better_iff`, `raw_better_iff`, `approximate_hidden_better`, `approximate_raw_better`, `neither_method_dominates` | Same fixed mask, finite two-sign population, normalized scalar linear encoder, two linear heads, frozen diagonal target map; common optimal linear-probe risk. Population optimization assumed, no masking-location or nonlinear audio-training comparison. [Details](MASKED_PREDICTION.md). |
 | Conditional mean and Bayes optimality | [`Abstraction.lean`](HJepa/Abstraction.lean): `fiber_residual_zero`, `residual_orthogonality`, `risk_pythagorean`, `bayes_optimal` | Finite probability law and feature-label type, scalar real target, fixed encoder; zero weights allowed. |
 | Information loss and learning-error tradeoff | `nested_risk_identity`, `abstraction_no_loss_iff`, `abstraction_improves_iff` | Nested deterministic features; fixed predictors. No theorem about a training algorithm or its sample complexity. |
 | Three-level H-WavJEPA tradeoff | [`ThreeLevel.lean`](HJepa/ThreeLevel.lean): `informationGap_telescope`, `three_level_gain_loss_identity`, `three_level_improves_iff`, `cumulative_gap_eq_zero_iff` | Finite law and low/middle label types; scalar target; high labels need not be finite. |
@@ -529,6 +545,9 @@ The audit checks the trust boundary, not the usefulness or truth of a model's
 empirical assumptions. CI runs both build and audit on GitHub.
 
 ## Reading and extending the project
+
+For the masked-input/hidden-target question, start with
+[MASKED_PREDICTION.md](MASKED_PREDICTION.md) and its eight small proof modules.
 
 1. Start with `Abstraction.lean` for the central theorem and explicit finite laws.
 2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.

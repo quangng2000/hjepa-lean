@@ -10,6 +10,10 @@ model, plus conditional guarantees for general finite populations. Whether an
 audio optimizer reaches those solutions and generalizes remains open. The
 encoder-optimization extension now discharges that learning obligation for
 specified linear finite-data models, including an exact IID SGD risk law.
+The masked-target comparison additionally proves exact conditions for ordering
+the downstream linear-probe risks of two pretraining objectives' joint optima
+within one specified finite linear model.
+It holds the mask fixed; it does not compare masking locations or train audio.
 
 ## Claim ledger
 
@@ -18,6 +22,7 @@ implementation of a neural architecture.
 
 | Claim | Verdict | Evidence and boundary |
 | --- | --- | --- |
+| Masked raw reconstruction or hidden-target prediction universally gives a better representation. | Refuted within a specified model family | Both directions have attained witnesses, even for invertible frozen target rescalings. Exact strict-regime `iff` conditions and approximate population bounds compare the same linear downstream task. Fixed mask and normalized linear encoder/head class; no optimizer or audio guarantee. [Masked-target comparison](MASKED_PREDICTION.md). |
 | Deterministic hierarchy improves optimal prediction from the same context. | Refuted in general | Bayes risk can only increase under abstraction. The finite three-level witness has optimal risks 0, 4, 5. [`ThreeLevel.lean`](HJepa/ThreeLevel.lean), [`AudioExamples.lean`](HJepa/AudioExamples.lean). |
 | Composition can strictly help a restricted readout. | Proved by construction | Four-sign parity has optimal affine risks 1, 1, 0 across three fixed levels. All unrestricted Bayes risks are 0. [`Expressivity.lean`](HJepa/Expressivity.lean). |
 | A finite training set can transfer this advantage to fitted readouts. | Proved by construction | Two balanced examples give exact empirical/population equality for every high affine readout; fitting tolerance below 1 implies strict superiority. [`LearningExamples.lean`](HJepa/LearningExamples.lean). |
