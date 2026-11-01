@@ -18,6 +18,9 @@ The [temporal extension](TEMPORAL_PREDICTION.md) adds a learned future-latent
 target, actual controlled transitions and autoregressive rollouts. It proves
 when raw energy versus temporal persistence favors the common task, with a
 future-raw control to separate target choice from forecast horizon.
+The [aggregation](TOKEN_AGGREGATION.md) and [detection](SPOOFING.md) extensions
+separately compare fixed token reductions, causal kernels, and downstream cue
+preservation. They do not identify a universally best learned audio architecture.
 
 ## Claim ledger
 
@@ -26,6 +29,8 @@ implementation of a neural architecture.
 
 | Claim | Verdict | Evidence and boundary |
 | --- | --- | --- |
+| Averaging or subsampling is always better before the next encoder. | Refuted by actual finite populations | Opposite attained winners against all deterministic readouts; a general positive-energy fitted-linear criterion characterizes the comparison by raw moments. Same available pair and target, fixed lower latents. [`TokenAggregation.lean`](HJepa/TokenAggregation.lean). |
+| Strided convolution automatically preserves all spoofing evidence. | Not established; universal scalar losslessness refuted | Causal kernels preserve different constructed binary cues, but each scalar linear projection has some colliding real-valued input pair. Two-channel sum/difference recovery accounts for capacity. Fine-feature retention helps an unrestricted optimum but does not prove real training preserves authenticity cues. [`Spoofing.lean`](HJepa/Spoofing.lean). |
 | Autoregressive latent prediction always improves on masked reconstruction. | Refuted within a specified finite process | Exact strict-regime conditions and attained examples show either can win. The future-raw control gives both winners at the same horizon; common future-task rankings transfer only when signal persistence is positive. [Temporal comparison](TEMPORAL_PREDICTION.md). Shared normalized scalar encoder, linear probe, nonnegative persistence, population optimization; not full H-JEPA. |
 | The best one-step head for a fixed encoder is always best when repeatedly applied. | Refuted by an actual rollout | A normalized mixed encoder with persistences `(1,0)` has one-step-optimal coefficient `9/25`, but coefficient `3/5` has strictly smaller two-step risk. The finite transition law and recurrent predictions are iterated explicitly. This does not claim a failure at the joint encoder/head global optimum. [`Rollout/Examples.lean`](HJepa/TemporalPrediction/Rollout/Examples.lean). |
 | Masked raw reconstruction or hidden-target prediction universally gives a better representation. | Refuted within a specified model family | Both directions have attained witnesses, even for invertible frozen target rescalings. Exact strict-regime `iff` conditions and approximate population bounds compare the same linear downstream task. Fixed mask and normalized linear encoder/head class; no optimizer or audio guarantee. [Masked-target comparison](MASKED_PREDICTION.md). |

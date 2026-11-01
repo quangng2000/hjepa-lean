@@ -28,6 +28,10 @@ The [temporal extension](TEMPORAL_PREDICTION.md) replaces the frozen target with
 **shared-encoder autoregressive latent prediction**. It derives winning
 conditions from a finite stochastic process, compares a matched-horizon raw
 baseline, and checks actual multi-step rollouts.
+The [token-aggregation comparison](TOKEN_AGGREGATION.md) proves exact conditions
+and opposite winners for subsampling versus averaging before the next encoder.
+The [spoofing-cue extension](SPOOFING.md) adds causal convolution, balanced binary
+detection counterexamples, cue margins, and guarantees for retaining fine features.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -40,6 +44,14 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Proved
 
+- **Token aggregation and detection cues:** actual finite examples show selection
+  and averaging each irreversibly losing distinctions the other can retain,
+  even with nonlinear readouts. Causal convolution includes both operations and
+  differencing; constructed binary cues give opposite winners with exact 0–1
+  errors. Sum/difference recovery accounts for its two output channels. Retaining
+  fixed fine features cannot worsen an unrestricted optimal fused classifier.
+  These are operator/capacity results, not measured spoofing performance. See
+  [aggregation](TOKEN_AGGREGATION.md) and [detection](SPOOFING.md).
 - **Masked reconstruction versus autoregressive latent prediction:** raw target
   energy and temporal persistence can favor different coordinates. Exact
   conditions, both winners, ties, and approximate population guarantees compare
@@ -414,6 +426,8 @@ Its full contents are **not** all formalized. This is the exact boundary:
 
 | Result | Lean coverage | Assumptions / boundary |
 | --- | --- | --- |
+| Latent-token selection versus averaging | [`TokenAggregation`](HJepa/TokenAggregation.lean): `mean_better_iff`, `aligned_mean_better_iff`, `neither_aggregation_dominates` | Same available fixed token pair and task; fitted scalar linear moment criterion, plus attained arbitrary-readout examples in both directions. Scalar nonzero linear next-encoder invariance; no nonlinear training guarantee or free lookahead. [Details](TOKEN_AGGREGATION.md). |
+| Causal filtering and detection-cue preservation | [`Spoofing`](HJepa/Spoofing.lean): `causal_no_future`, `causal_alternating_perfect`, `alternating_average_postencoder_chance`, `current_average_opposite_winners`, `retained_optimum_no_worse` | Constructed balanced binary cues; actual 0–1 error, arbitrary post-collapse classifiers, explicit kernels and padding. Two-channel recovery and scalar-projection collisions. Fixed fine features and fusion class containing fine-only heads; not EER, real spoof data, or JEPA convergence. [Details](SPOOFING.md). |
 | Masked reconstruction versus autoregressive learned targets | [`TemporalPrediction`](HJepa/TemporalPrediction.lean): `autoregressive_better_iff`, `reconstruction_better_iff`, `autoregressive_future_better_iff`, `approximate_autoregressive_better` | Finite controlled sign process; nonnegative persistence; shared normalized scalar encoder; linear heads and probes; population optimality or tolerance. Same-horizon future-raw control and actual recurrent rollout risks also proved. No full hierarchy, SIGReg, optimizer, or audio guarantee. [Details](TEMPORAL_PREDICTION.md). |
 | Masked raw reconstruction versus frozen hidden targets | [`MaskedPrediction`](HJepa/MaskedPrediction.lean): `hidden_better_iff`, `raw_better_iff`, `approximate_hidden_better`, `approximate_raw_better`, `neither_method_dominates` | Same fixed mask, finite two-sign population, normalized scalar linear encoder, two linear heads, frozen diagonal target map; common optimal linear-probe risk. Population optimization assumed, no masking-location or nonlinear audio-training comparison. [Details](MASKED_PREDICTION.md). |
 | Conditional mean and Bayes optimality | [`Abstraction.lean`](HJepa/Abstraction.lean): `fiber_residual_zero`, `residual_orthogonality`, `risk_pythagorean`, `bayes_optimal` | Finite probability law and feature-label type, scalar real target, fixed encoder; zero weights allowed. |
@@ -562,6 +576,9 @@ For the masked-input/hidden-target question, start with
 [MASKED_PREDICTION.md](MASKED_PREDICTION.md) and its eight small proof modules.
 For learned future targets and autoregressive prediction, continue with
 [TEMPORAL_PREDICTION.md](TEMPORAL_PREDICTION.md).
+For token reduction before the next encoder, see
+[TOKEN_AGGREGATION.md](TOKEN_AGGREGATION.md); for causal audio-filter and
+spoof-detection mechanisms, see [SPOOFING.md](SPOOFING.md).
 
 1. Start with `Abstraction.lean` for the central theorem and explicit finite laws.
 2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.
