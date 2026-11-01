@@ -20,6 +20,22 @@ SGD expected-risk decay, and an explicit failure of ordinary joint training.
 The LocaLeReg extension proves **translation invariance after centering a fixed
 nonempty cluster**, following the centering operation in
 [LocaLeJEPA](https://arxiv.org/abs/2610.28458). It does not prove better audio results.
+The [masked-target comparison](MASKED_PREDICTION.md) proves **when masked raw
+reconstruction or frozen hidden-layer prediction wins on a common linear task**,
+with exact global-optimum conditions, ties, and approximate-optimization bounds
+in a specified finite linear model.
+The [temporal extension](TEMPORAL_PREDICTION.md) replaces the frozen target with
+**shared-encoder autoregressive latent prediction**. It derives winning
+conditions from a finite stochastic process, compares a matched-horizon raw
+baseline, and checks actual multi-step rollouts.
+The [token-aggregation comparison](TOKEN_AGGREGATION.md) proves exact conditions
+and opposite winners for subsampling versus averaging before the next encoder.
+The [spoofing-cue extension](SPOOFING.md) adds causal convolution, balanced binary
+detection counterexamples, cue margins, and guarantees for retaining fine features.
+The [three-level fusion result](FUSION.md) gives a sharp positive example:
+an affine detector's optimal classification error is **12.5% on fine features**
+and **0% with all three levels**. Each branch is needed for zero error under the
+specified head classes; unrestricted fine-only prediction already attains zero.
 
 This is a formal mathematical companion—not a verification of the H-JEPA
 implementation, a replication of its experiments, or a proof that one trained
@@ -32,6 +48,36 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Proved
 
+- **Strict three-level fusion benefit under explicit head restrictions:** on a
+  constructed balanced cue task, affine fusion achieves zero error while every
+  fine-only affine detector has error at least 1/8, with an attaining fine head.
+  All branch ablations have positive floors; approximate fitting below the gap
+  still wins. Unrestricted deterministic fusion preserves the fine risk set.
+  Purely affine higher levels add no affine scoring expressiveness. See
+  [the classification proof and aggregation boundaries](FUSION.md).
+- **Token aggregation and detection cues:** actual finite examples show selection
+  and averaging each irreversibly losing distinctions the other can retain,
+  even with nonlinear readouts. Causal convolution includes both operations and
+  differencing; constructed binary cues give opposite winners with exact 0–1
+  errors. Sum/difference recovery accounts for its two output channels. Retaining
+  fixed fine features cannot worsen an unrestricted optimal fused classifier.
+  These are operator/capacity results, not measured spoofing performance. See
+  [aggregation](TOKEN_AGGREGATION.md) and [detection](SPOOFING.md).
+- **Masked reconstruction versus autoregressive latent prediction:** raw target
+  energy and temporal persistence can favor different coordinates. Exact
+  conditions, both winners, ties, and approximate population guarantees compare
+  the same linear task. A future-raw baseline controls for forecast horizon;
+  actual recursive rollouts expose a fixed-encoder one-step/two-step mismatch.
+  This is a scalar finite-process model, not full H-JEPA or SIGReg verification.
+  See the [temporal comparison](TEMPORAL_PREDICTION.md).
+- **Masked reconstruction versus hidden prediction:** both learners see the same
+  masked context and optimize the same normalized scalar encoder and two linear
+  heads. Opposite target-energy orderings give necessary and sufficient conditions
+  for either objective's global optima to beat the other's on one linear-probe
+  task. Equal energies leave task quality unidentified; explicit examples prove
+  neither method dominates. Positive-margin bounds cover approximate population
+  optima. This is a fixed-mask model, not an audio training result. See the
+  [comparison and its assumptions](MASKED_PREDICTION.md).
 - **Fixed-cluster centering:** adding a common vector shifts the cluster mean
   by the same vector and leaves centered residuals unchanged. Any fixed loss of
   those residuals, and weighted sums over fixed clusters, inherit this invariance.
@@ -120,6 +166,9 @@ and the remaining obligations for an H-WavJEPA training guarantee.
 
 ### Still open
 
+- Whether masking raw audio or intermediate features, or choosing different
+  learned latent targets, improves actual audio training. The new comparison
+  fixes the mask and target layer and assumes population optimization quality.
 - Whether a **full nonlinear H-WavJEPA optimizer learns useful encoders**
   from finite audio data. The encoder-learning proofs below cover specified
   linear models with a frozen predictive branch, not jointly trained JEPA.
@@ -388,6 +437,11 @@ Its full contents are **not** all formalized. This is the exact boundary:
 
 | Result | Lean coverage | Assumptions / boundary |
 | --- | --- | --- |
+| Three-level fusion classification gain and boundary | [`Spoofing/Fusion`](HJepa/Spoofing/Fusion.lean): `achievable_risk_iff`, `cue_full_optimal`, `cue_fused_optimum_strict`, `cue_approximate_strict`, `three_affine_levels_collapse` | Fixed deterministic hierarchy and same full fine context. Actual finite binary error; all-affine fine floor 1/8, fused optimum 0; every branch ablation has a positive floor. Handcrafted nonlinear features, not trained audio/EER or extra information. Recoverable aggregation is optimal against deterministic reductions only with unrestricted optimal heads. [Details](FUSION.md). |
+| Latent-token selection versus averaging | [`TokenAggregation`](HJepa/TokenAggregation.lean): `mean_better_iff`, `aligned_mean_better_iff`, `neither_aggregation_dominates` | Same available fixed token pair and task; fitted scalar linear moment criterion, plus attained arbitrary-readout examples in both directions. Scalar nonzero linear next-encoder invariance; no nonlinear training guarantee or free lookahead. [Details](TOKEN_AGGREGATION.md). |
+| Causal filtering and detection-cue preservation | [`Spoofing`](HJepa/Spoofing.lean): `causal_no_future`, `causal_alternating_perfect`, `alternating_average_postencoder_chance`, `current_average_opposite_winners`, `retained_optimum_no_worse` | Constructed balanced binary cues; actual 0–1 error, arbitrary post-collapse classifiers, explicit kernels and padding. Two-channel recovery and scalar-projection collisions. Fixed fine features and fusion class containing fine-only heads; not EER, real spoof data, or JEPA convergence. [Details](SPOOFING.md). |
+| Masked reconstruction versus autoregressive learned targets | [`TemporalPrediction`](HJepa/TemporalPrediction.lean): `autoregressive_better_iff`, `reconstruction_better_iff`, `autoregressive_future_better_iff`, `approximate_autoregressive_better` | Finite controlled sign process; nonnegative persistence; shared normalized scalar encoder; linear heads and probes; population optimality or tolerance. Same-horizon future-raw control and actual recurrent rollout risks also proved. No full hierarchy, SIGReg, optimizer, or audio guarantee. [Details](TEMPORAL_PREDICTION.md). |
+| Masked raw reconstruction versus frozen hidden targets | [`MaskedPrediction`](HJepa/MaskedPrediction.lean): `hidden_better_iff`, `raw_better_iff`, `approximate_hidden_better`, `approximate_raw_better`, `neither_method_dominates` | Same fixed mask, finite two-sign population, normalized scalar linear encoder, two linear heads, frozen diagonal target map; common optimal linear-probe risk. Population optimization assumed, no masking-location or nonlinear audio-training comparison. [Details](MASKED_PREDICTION.md). |
 | Conditional mean and Bayes optimality | [`Abstraction.lean`](HJepa/Abstraction.lean): `fiber_residual_zero`, `residual_orthogonality`, `risk_pythagorean`, `bayes_optimal` | Finite probability law and feature-label type, scalar real target, fixed encoder; zero weights allowed. |
 | Information loss and learning-error tradeoff | `nested_risk_identity`, `abstraction_no_loss_iff`, `abstraction_improves_iff` | Nested deterministic features; fixed predictors. No theorem about a training algorithm or its sample complexity. |
 | Three-level H-WavJEPA tradeoff | [`ThreeLevel.lean`](HJepa/ThreeLevel.lean): `informationGap_telescope`, `three_level_gain_loss_identity`, `three_level_improves_iff`, `cumulative_gap_eq_zero_iff` | Finite law and low/middle label types; scalar target; high labels need not be finite. |
@@ -415,7 +469,7 @@ Its full contents are **not** all formalized. This is the exact boundary:
 | No improvement from regrouping inherited error bounds | `geometric_blocking`, `inherited_full_bound_equality` | Exact algebraic identity; includes zero horizons and multiplier one. Not a lower bound on actual learned-model error. |
 | Perfect latent prediction can fail control | [`Counterexamples.lean`](HJepa/Counterexamples.lean): `abstract_rollout_exact`, `abstract_policy_success_half`, `full_policy_success_one` | Actual finite four-state average; arbitrary deterministic background-only policy, compared with full-state access. |
 | Sign-discarding prediction loss | `squared_sign_risk_at_least_one`, `zero_predictor_attains_one`, `retained_sign_risk_zero` | Fair finite $`\pm1`$ target: optimal squared-loss risk one versus zero. |
-| Gaussian AR / spectral feature-selection argument | Analytical note only | No Lean proof of its stochastic process or matrix optimization result yet. |
+| Gaussian AR / general spectral feature-selection argument | Analytical note only | The finite scalar sign-process comparison is now checked in `TemporalPrediction`; the Gaussian process and general matrix optimization result remain unproved. |
 | Trained nonlinear H-JEPA vs independently trained flat JEPA | Not proved | No verification of neural training, generalization, SIGReg, experimental scores, or closed-loop control. |
 
 ## Planning: where gains and losses enter
@@ -529,6 +583,14 @@ The audit checks the trust boundary, not the usefulness or truth of a model's
 empirical assumptions. CI runs both build and audit on GitHub.
 
 ## Reading and extending the project
+
+For the masked-input/hidden-target question, start with
+[MASKED_PREDICTION.md](MASKED_PREDICTION.md) and its eight small proof modules.
+For learned future targets and autoregressive prediction, continue with
+[TEMPORAL_PREDICTION.md](TEMPORAL_PREDICTION.md).
+For token reduction before the next encoder, see
+[TOKEN_AGGREGATION.md](TOKEN_AGGREGATION.md); for causal audio-filter and
+spoof-detection mechanisms, see [SPOOFING.md](SPOOFING.md).
 
 1. Start with `Abstraction.lean` for the central theorem and explicit finite laws.
 2. Read `ThreeLevel.lean`, `Vector.lean`, and `Readout.lean` for the H-WavJEPA extension.
