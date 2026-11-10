@@ -567,7 +567,8 @@ lake exe cache get \
   Mathlib.Order.ConditionallyCompleteLattice.Basic \
   Mathlib.Topology.MetricSpace.Basic \
   Mathlib.Tactic.FieldSimp Mathlib.Tactic.Linarith \
-  Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
+  Mathlib.Tactic.LinearCombination Mathlib.Tactic.NormNum \
+  Mathlib.Tactic.Ring
 ```
 
 `lake build` checks all reviewed proof modules through [`HJepa.lean`](HJepa.lean)

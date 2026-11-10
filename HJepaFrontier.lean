@@ -1,4 +1,8 @@
 import HJepaFrontier.Views.Persistence
+import HJepaFrontier.Views.Redraw
+import HJepaFrontier.Views.Cost
+import HJepaFrontier.Horizon.Margin
+import HJepaFrontier.JointObjective.Design
 
 /-!
 # Frontier: machine-checked candidates awaiting statement review
