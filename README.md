@@ -567,14 +567,18 @@ lake exe cache get \
   Mathlib.Order.ConditionallyCompleteLattice.Basic \
   Mathlib.Topology.MetricSpace.Basic \
   Mathlib.Tactic.FieldSimp Mathlib.Tactic.Linarith \
-  Mathlib.Tactic.NormNum Mathlib.Tactic.Ring
+  Mathlib.Tactic.LinearCombination Mathlib.Tactic.NormNum \
+  Mathlib.Tactic.Ring
 ```
 
-`lake build` checks all proof modules through [`HJepa.lean`](HJepa.lean).
+`lake build` checks all reviewed proof modules through [`HJepa.lean`](HJepa.lean)
+and the unreviewed Frontier tier through [`HJepaFrontier.lean`](HJepaFrontier.lean).
 `lake env lean Audit.lean` additionally rejects transitive axiom dependencies
 outside `propext`, `Classical.choice`, and `Quot.sound`. It scans public and
-private declarations in the `HJepa` namespace, including definitions, and
-prints theorem dependency reports. It fails if the namespace is empty.
+private declarations in the `HJepa` namespace, including definitions and the
+`HJepa.Frontier` tier, and prints theorem dependency reports. It fails if the
+namespace is empty. `bash scripts/check_frontier.sh` checks that every Frontier
+module is imported and stays inside that namespace.
 
 There are no unfinished proofs, custom axioms, or `native_decide` proofs in the
 development. Ordinary classical mathematics still uses the three standard Lean
@@ -611,6 +615,11 @@ For contributions, retain explicit assumptions, import new proof modules from
 `HJepa.lean`, update the coverage table, and run both verification commands.
 Do not replace proof obligations with new axioms or claim neural-architecture
 guarantees from a simplified model.
+
+New candidate statements start in the [proof-fuzzing queue](FUZZ_QUEUE.md) and
+the Frontier tier. Lean checks Frontier proofs, but nobody has yet confirmed
+that their statements mean what the queue says. Nothing in Frontier is a claim
+of this README until it is reviewed and moved into `HJepa/`.
 
 ## Attribution
 
