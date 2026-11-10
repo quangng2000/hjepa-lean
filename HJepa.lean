@@ -23,6 +23,10 @@ import HJepa.Planning
 import HJepa.Rollout
 import HJepa.Counterexamples
 import HJepa.LocalRegularization
+import HJepa.MaskedPrediction
+import HJepa.TemporalPrediction
+import HJepa.TokenAggregation
+import HJepa.Spoofing
 
 /-!
 # H-JEPA and H-WavJEPA: conditional gains and losses

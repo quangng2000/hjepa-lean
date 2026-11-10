@@ -10,6 +10,20 @@ model, plus conditional guarantees for general finite populations. Whether an
 audio optimizer reaches those solutions and generalizes remains open. The
 encoder-optimization extension now discharges that learning obligation for
 specified linear finite-data models, including an exact IID SGD risk law.
+The masked-target comparison additionally proves exact conditions for ordering
+the downstream linear-probe risks of two pretraining objectives' joint optima
+within one specified finite linear model.
+It holds the mask fixed; it does not compare masking locations or train audio.
+The [temporal extension](TEMPORAL_PREDICTION.md) adds a learned future-latent
+target, actual controlled transitions and autoregressive rollouts. It proves
+when raw energy versus temporal persistence favors the common task, with a
+future-raw control to separate target choice from forecast horizon.
+The [aggregation](TOKEN_AGGREGATION.md) and [detection](SPOOFING.md) extensions
+separately compare fixed token reductions, causal kernels, and downstream cue
+preservation. They do not identify a universally best learned audio architecture.
+The [fusion extension](FUSION.md) proves a sharp classification gain under
+restricted affine heads while establishing equality for unrestricted heads
+of the same full fine information.
 
 ## Claim ledger
 
@@ -18,6 +32,13 @@ implementation of a neural architecture.
 
 | Claim | Verdict | Evidence and boundary |
 | --- | --- | --- |
+| Combining three deterministic levels always improves spoofing accuracy. | Refuted without a head restriction; strict improvement proved in a finite restricted model | Unrestricted attainable classification risks are identical to fine-only risks. A handcrafted nested nonlinear hierarchy gives affine fine optimum 1/8 versus fused optimum 0; each missing branch leaves positive error. Approximate fitting preserves the strict gap below 1/8. No trained neural or real-data claim. [Fusion proof](FUSION.md). |
+| Three affine levels followed by affine fusion add nonlinear scoring power. | Refuted algebraically | The composed score equals one affine score of the raw fine features, for any finite dimensions. Nonlinear encoders and input-dependent attention are outside this boundary. [`NestedAffine.lean`](HJepa/Spoofing/Fusion/Aggregation/NestedAffine.lean). |
+| Averaging or subsampling is always better before the next encoder. | Refuted by actual finite populations | Opposite attained winners against all deterministic readouts; a general positive-energy fitted-linear criterion characterizes the comparison by raw moments. Same available pair and target, fixed lower latents. [`TokenAggregation.lean`](HJepa/TokenAggregation.lean). |
+| Strided convolution automatically preserves all spoofing evidence. | Not established; universal scalar losslessness refuted | Causal kernels preserve different constructed binary cues, but each scalar linear projection has some colliding real-valued input pair. Two-channel sum/difference recovery accounts for capacity. Fine-feature retention helps an unrestricted optimum but does not prove real training preserves authenticity cues. [`Spoofing.lean`](HJepa/Spoofing.lean). |
+| Autoregressive latent prediction always improves on masked reconstruction. | Refuted within a specified finite process | Exact strict-regime conditions and attained examples show either can win. The future-raw control gives both winners at the same horizon; common future-task rankings transfer only when signal persistence is positive. [Temporal comparison](TEMPORAL_PREDICTION.md). Shared normalized scalar encoder, linear probe, nonnegative persistence, population optimization; not full H-JEPA. |
+| The best one-step head for a fixed encoder is always best when repeatedly applied. | Refuted by an actual rollout | A normalized mixed encoder with persistences `(1,0)` has one-step-optimal coefficient `9/25`, but coefficient `3/5` has strictly smaller two-step risk. The finite transition law and recurrent predictions are iterated explicitly. This does not claim a failure at the joint encoder/head global optimum. [`Rollout/Examples.lean`](HJepa/TemporalPrediction/Rollout/Examples.lean). |
+| Masked raw reconstruction or hidden-target prediction universally gives a better representation. | Refuted within a specified model family | Both directions have attained witnesses, even for invertible frozen target rescalings. Exact strict-regime `iff` conditions and approximate population bounds compare the same linear downstream task. Fixed mask and normalized linear encoder/head class; no optimizer or audio guarantee. [Masked-target comparison](MASKED_PREDICTION.md). |
 | Deterministic hierarchy improves optimal prediction from the same context. | Refuted in general | Bayes risk can only increase under abstraction. The finite three-level witness has optimal risks 0, 4, 5. [`ThreeLevel.lean`](HJepa/ThreeLevel.lean), [`AudioExamples.lean`](HJepa/AudioExamples.lean). |
 | Composition can strictly help a restricted readout. | Proved by construction | Four-sign parity has optimal affine risks 1, 1, 0 across three fixed levels. All unrestricted Bayes risks are 0. [`Expressivity.lean`](HJepa/Expressivity.lean). |
 | A finite training set can transfer this advantage to fitted readouts. | Proved by construction | Two balanced examples give exact empirical/population equality for every high affine readout; fitting tolerance below 1 implies strict superiority. [`LearningExamples.lean`](HJepa/LearningExamples.lean). |
