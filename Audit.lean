@@ -1,4 +1,5 @@
 import HJepa
+import HJepaFrontier
 import Lean.Util.CollectAxioms
 import Lean.Elab.Command
 
@@ -6,7 +7,8 @@ import Lean.Elab.Command
 # Trust audit
 
 Check every declaration in the `HJepa` namespace, including definitions used by
-the theorems. Only Lean's standard classical axioms are permitted transitively.
+the theorems. Unreviewed Frontier modules live in `HJepa.Frontier`, so the same
+audit covers them. Only Lean's standard classical axioms are permitted transitively.
 This rejects unfinished proofs and additional axioms even when hidden behind
 helper declarations. The audit does not certify the mathematical relevance of
 a theorem's hypotheses; that requires reading its statement.
